@@ -268,7 +268,6 @@
     }
 
     .chunk-crc {
-      margin-left: auto;
       font-size: var(--font-size-label);
     }
 
@@ -502,9 +501,10 @@
   <div id="app">
     <!-- Header -->
     <header id="header">
-      <h1>GLITCHEDIT</h1>
+      <h1>ĞŁİŦČĦ€ĐİŦ</h1>
       <div id="header-buttons">
         <button id="btn-load">Load</button>
+        <button id="btn-random">Random</button>
         <button id="btn-save" disabled>Save</button>
         <button id="btn-save-raw" disabled>Save Raw</button>
       </div>
@@ -659,9 +659,9 @@
           break;
         }
 
-        // Read chunk length (big-endian)
-        const length = (buffer[offset] << 24) | (buffer[offset + 1] << 16) |
-                       (buffer[offset + 2] << 8) | buffer[offset + 3];
+        // Read chunk length (big-endian, >>> 0 for unsigned)
+        const length = ((buffer[offset] << 24) | (buffer[offset + 1] << 16) |
+                        (buffer[offset + 2] << 8) | buffer[offset + 3]) >>> 0;
 
         // Read chunk type
         const typeBytes = buffer.slice(offset + 4, offset + 8);
@@ -674,10 +674,10 @@
           break;
         }
 
-        // Read stored CRC
+        // Read stored CRC (use >>> 0 to force unsigned 32-bit)
         const crcOffset = offset + 8 + length;
-        const storedCrc = (buffer[crcOffset] << 24) | (buffer[crcOffset + 1] << 16) |
-                          (buffer[crcOffset + 2] << 8) | buffer[crcOffset + 3];
+        const storedCrc = ((buffer[crcOffset] << 24) | (buffer[crcOffset + 1] << 16) |
+                           (buffer[crcOffset + 2] << 8) | buffer[crcOffset + 3]) >>> 0;
 
         // Calculate actual CRC (over type + data)
         const calculatedCrc = crc32(buffer, offset + 4, 4 + length);
@@ -804,6 +804,7 @@
       hexContent: document.getElementById('hex-content'),
       fileInput: document.getElementById('file-input'),
       btnLoad: document.getElementById('btn-load'),
+      btnRandom: document.getElementById('btn-random'),
       btnSave: document.getElementById('btn-save'),
       btnSaveRaw: document.getElementById('btn-save-raw'),
       statusFilename: document.getElementById('status-filename'),
