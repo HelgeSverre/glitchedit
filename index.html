@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>GLITCHEDIT</title>
+  <title>ĞŁİŦČĦ€ĐİŦ</title>
   <style>
     /* ========== RESET & BASE ========== */
     *, *::before, *::after {
@@ -1306,6 +1306,45 @@
     // Save buttons
     elements.btnSave.addEventListener('click', () => saveFile(true));
     elements.btnSaveRaw.addEventListener('click', () => saveFile(false));
+
+    // Random image button
+    elements.btnRandom.addEventListener('click', async () => {
+      try {
+        elements.btnRandom.disabled = true;
+        elements.btnRandom.textContent = 'Loading...';
+
+        // Fetch random image from Lorem Picsum
+        const response = await fetch('https://picsum.photos/800/600');
+        const blob = await response.blob();
+
+        // Convert to PNG via canvas (picsum returns JPG)
+        const img = new Image();
+        img.src = URL.createObjectURL(blob);
+        await new Promise((resolve, reject) => {
+          img.onload = resolve;
+          img.onerror = reject;
+        });
+
+        const canvas = document.createElement('canvas');
+        canvas.width = img.width;
+        canvas.height = img.height;
+        canvas.getContext('2d').drawImage(img, 0, 0);
+
+        const pngBlob = await new Promise(resolve =>
+          canvas.toBlob(resolve, 'image/png')
+        );
+
+        const buffer = new Uint8Array(await pngBlob.arrayBuffer());
+        loadBuffer(buffer, 'random_' + Date.now() + '.png');
+
+        URL.revokeObjectURL(img.src);
+      } catch (e) {
+        console.error('Failed to load random image:', e);
+      } finally {
+        elements.btnRandom.disabled = false;
+        elements.btnRandom.textContent = 'Random';
+      }
+    });
 
     // Hex scroll
     elements.hexScroll.addEventListener('scroll', updateVirtualScroll);
