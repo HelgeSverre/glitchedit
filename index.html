@@ -1362,10 +1362,10 @@
         state.selectionStart = state.cursorOffset;
         state.selectionEnd = offset;
       } else {
-        // Move cursor
+        // Move cursor and select single byte
         state.cursorOffset = offset;
-        state.selectionStart = null;
-        state.selectionEnd = null;
+        state.selectionStart = offset;
+        state.selectionEnd = offset;
       }
 
       state.editingByte = null;
