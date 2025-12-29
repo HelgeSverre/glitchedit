@@ -1,4 +1,4 @@
-# GLITCHEDIT
+# ĞŁİŦČĦƎĐİŦ
 
 A browser-based PNG hex editor for creating glitch art through direct byte manipulation.
 
