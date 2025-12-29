@@ -1,0 +1,1126 @@
+
+    /* ========== FONTS ========== */
+    @import url('https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;500;600&display=swap');
+
+    @font-face {
+      font-family: 'Hack';
+      src: url('https://cdn.jsdelivr.net/npm/hack-font@3/build/web/fonts/hack-regular.woff2') format('woff2');
+      font-weight: normal;
+      font-style: normal;
+      font-display: swap;
+    }
+
+    /* ========== RESET & BASE ========== */
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    :root {
+      /* Core palette */
+      --bg: #0a0a0a;
+      --surface: #141414;
+      --border: #2a2a2a;
+      --text-primary: #e0e0e0;
+      --text-secondary: #888888;
+      --text-muted: #555555;
+
+      /* Accent color (change this to theme the app) */
+      --accent: #4ecdc4;
+      --accent-hover: #5fd9d0;
+      --accent-muted: #3a9a94;
+
+      /* Chunk accent colors */
+      --chunk-signature: #ff6b6b;
+      --chunk-ihdr: var(--accent);
+      --chunk-plte: #ffe66d;
+      --chunk-idat: #95e1d3;
+      --chunk-idat-compressed: #f38181;
+      --chunk-iend: #aa96da;
+      --chunk-ancillary: #606060;
+      --chunk-crc: #ffc857;
+      --chunk-invalid: #ff0040;
+
+      /* Selection */
+      --selection-bg: var(--accent);
+      --selection-text: #0a0a0a;
+
+      /* Typography */
+      --font-mono: "Hack", "SF Mono", "Fira Code", "Consolas", monospace;
+      --font-sans: "Open Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      --font-size-xs: 11px;
+      --font-size-sm: 12px;
+      --font-size-base: 13px;
+      --font-size-md: 14px;
+
+      /* Sizing */
+      --header-height: 48px;
+      --status-height: 32px;
+      --row-height: 20px;
+
+      /* Scrollbar */
+      --scrollbar-width: 8px;
+      --scrollbar-track: var(--bg);
+      --scrollbar-thumb: var(--border);
+      --scrollbar-thumb-hover: #3a3a3a;
+    }
+
+    /* ========== CUSTOM SCROLLBARS ========== */
+
+    /* Firefox */
+    * {
+      scrollbar-width: thin;
+      scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
+    }
+
+    /* Webkit (Chrome, Safari, Edge) */
+    ::-webkit-scrollbar {
+      width: var(--scrollbar-width);
+      height: var(--scrollbar-width);
+    }
+
+    ::-webkit-scrollbar-track {
+      background: var(--scrollbar-track);
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: var(--scrollbar-thumb);
+      border-radius: 4px;
+      border: 2px solid var(--scrollbar-track);
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+      background: var(--scrollbar-thumb-hover);
+    }
+
+    ::-webkit-scrollbar-corner {
+      background: var(--scrollbar-track);
+    }
+
+    /* Hide scrollbar arrows */
+    ::-webkit-scrollbar-button {
+      display: none;
+    }
+
+    html, body {
+      height: 100%;
+      overflow: hidden;
+      background: var(--bg);
+      color: var(--text-primary);
+      font-family: var(--font-sans);
+      font-size: var(--font-size-base);
+    }
+
+    /* ========== LAYOUT ========== */
+    #app {
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+    }
+
+    /* Header */
+    #header {
+      height: var(--header-height);
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 16px;
+      flex-shrink: 0;
+    }
+
+    #header h1 {
+      font-size: 14px;
+      font-weight: 600;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      color: var(--text-primary);
+    }
+
+    #header-buttons {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    button {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      color: var(--text-primary);
+      font-family: var(--font-sans);
+      font-size: var(--font-size-sm);
+      font-weight: 500;
+      padding: 8px 16px;
+      cursor: pointer;
+      border-radius: 4px;
+      transition: border-color 0.1s, background 0.1s;
+    }
+
+    button:hover {
+      border-color: var(--accent-muted);
+      background: var(--border);
+    }
+
+    button:active {
+      background: var(--border);
+    }
+
+    button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    /* Header buttons - borderless style */
+    #header-buttons button {
+      background: transparent;
+      border: none;
+      border-radius: 0;
+      padding: 8px 12px;
+      color: var(--text-secondary);
+    }
+
+    #header-buttons button:hover {
+      background: transparent;
+      color: var(--text-primary);
+    }
+
+    #header-buttons button:disabled {
+      color: var(--text-muted);
+    }
+
+    #btn-random {
+      min-width: 110px;
+    }
+
+    /* Mode toggle switch */
+    .mode-switch {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      cursor: pointer;
+      user-select: none;
+      padding: 4px 8px;
+      border-radius: 4px;
+      background: var(--bg);
+    }
+
+    .mode-switch:hover {
+      background: var(--border);
+    }
+
+    .mode-switch input {
+      display: none;
+    }
+
+    .mode-switch-slider {
+      position: relative;
+      width: 36px;
+      height: 20px;
+      background: var(--border);
+      border-radius: 10px;
+      transition: background 0.2s;
+    }
+
+    .mode-switch-slider::after {
+      content: '';
+      position: absolute;
+      top: 2px;
+      left: 2px;
+      width: 16px;
+      height: 16px;
+      background: var(--text-secondary);
+      border-radius: 50%;
+      transition: transform 0.2s, background 0.2s;
+    }
+
+    .mode-switch input:checked + .mode-switch-slider {
+      background: var(--accent-muted);
+    }
+
+    .mode-switch input:checked + .mode-switch-slider::after {
+      transform: translateX(16px);
+      background: var(--accent);
+    }
+
+    .mode-switch-label {
+      font-family: var(--font-sans);
+      font-size: var(--font-size-xs);
+      font-weight: 500;
+      color: var(--text-muted);
+      transition: color 0.2s;
+    }
+
+    .mode-switch-label-left {
+      order: -1;
+    }
+
+    .mode-switch:has(input:not(:checked)) .mode-switch-label-left {
+      color: var(--accent);
+    }
+
+    .mode-switch:has(input:checked) .mode-switch-label-right {
+      color: var(--accent);
+    }
+
+    /* Main content area */
+    #main {
+      flex: 1;
+      display: flex;
+      overflow: hidden;
+      position: relative;
+    }
+
+    /* Split panels */
+    #preview-panel {
+      flex: 1;
+      min-width: 200px;
+      display: flex;
+      flex-direction: column;
+      border-right: 1px solid var(--border);
+      overflow: hidden;
+    }
+
+    #editor-panel {
+      flex: 1;
+      min-width: 400px;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    /* Resizer */
+    #resizer {
+      width: 4px;
+      background: var(--border);
+      cursor: col-resize;
+      flex-shrink: 0;
+    }
+
+    #resizer:hover {
+      background: var(--text-secondary);
+    }
+
+    /* Preview area */
+    #preview-container {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      position: relative;
+      background: repeating-conic-gradient(var(--surface) 0% 25%, var(--bg) 0% 50%) 50% / 16px 16px;
+    }
+
+    #preview-canvas {
+      max-width: 100%;
+      max-height: 100%;
+      image-rendering: pixelated;
+    }
+
+    #preview-error {
+      display: none;
+      position: absolute;
+      inset: 0;
+      background: rgba(255, 0, 64, 0.1);
+      color: var(--chunk-invalid);
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      gap: 8px;
+      font-size: var(--font-size-status);
+    }
+
+    #preview-error.visible {
+      display: flex;
+    }
+
+    /* Loading state */
+    #preview-loading {
+      display: none;
+      position: absolute;
+      inset: 0;
+      background: var(--bg);
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      gap: 16px;
+      color: var(--text-secondary);
+      font-size: var(--font-size-status);
+    }
+
+    #preview-loading.visible {
+      display: flex;
+    }
+
+    .loading-spinner {
+      width: 32px;
+      height: 32px;
+      border: 3px solid var(--border);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .loading-text {
+      color: var(--text-muted);
+    }
+
+    /* Dropzone */
+    #dropzone {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      gap: 16px;
+      color: var(--text-secondary);
+      font-size: var(--font-size-status);
+    }
+
+    #dropzone.hidden {
+      display: none;
+    }
+
+    #dropzone.dragover {
+      background: rgba(78, 205, 196, 0.1);
+      border: 2px dashed var(--accent);
+    }
+
+    #dropzone-icon {
+      font-size: 48px;
+      opacity: 0.3;
+    }
+
+    /* Chunk navigator */
+    #chunk-nav {
+      height: 180px;
+      border-bottom: 1px solid var(--border);
+      overflow-y: auto;
+      flex-shrink: 0;
+    }
+
+    #chunk-nav-header {
+      padding: 8px 12px;
+      font-size: var(--font-size-label);
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      color: var(--text-secondary);
+      border-bottom: 1px solid var(--border);
+      background: var(--surface);
+      position: sticky;
+      top: 0;
+    }
+
+    .chunk-item {
+      display: flex;
+      align-items: center;
+      padding: 6px 12px;
+      cursor: pointer;
+      border-bottom: 1px solid var(--border);
+      gap: 8px;
+    }
+
+    .chunk-item:hover {
+      background: var(--surface);
+    }
+
+    .chunk-item.selected {
+      background: var(--border);
+    }
+
+    .chunk-color {
+      width: 12px;
+      height: 12px;
+      flex-shrink: 0;
+    }
+
+    .chunk-type {
+      font-size: var(--font-size-hex);
+      font-weight: 600;
+      min-width: 50px;
+    }
+
+    .chunk-info {
+      font-size: var(--font-size-label);
+      color: var(--text-secondary);
+    }
+
+    .chunk-crc {
+      font-size: var(--font-size-label);
+    }
+
+    .chunk-crc.valid {
+      color: var(--chunk-idat);
+    }
+
+    .chunk-crc.invalid {
+      color: var(--chunk-invalid);
+    }
+
+    /* Hex editor */
+    #hex-container {
+      flex: 1;
+      overflow: hidden;
+      position: relative;
+    }
+
+    #hex-header {
+      display: flex;
+      padding: 8px 12px;
+      font-size: var(--font-size-label);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--text-secondary);
+      border-bottom: 1px solid var(--border);
+      background: var(--surface);
+    }
+
+    #hex-header .offset-col {
+      width: 80px;
+    }
+
+    #hex-header .hex-col {
+      flex: 1;
+    }
+
+    #hex-header .ascii-col {
+      width: 160px;
+      text-align: right;
+    }
+
+    #hex-scroll {
+      position: absolute;
+      top: 32px;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      overflow-y: auto;
+      overflow-x: hidden;
+    }
+
+    #hex-content {
+      position: relative;
+    }
+
+    .hex-row {
+      display: flex;
+      height: var(--row-height);
+      align-items: center;
+      padding: 0 12px;
+      font-family: var(--font-mono);
+      font-size: var(--font-size-base);
+      position: absolute;
+      left: 0;
+      right: 0;
+    }
+
+    .hex-row:hover {
+      background: var(--surface);
+    }
+
+    .offset {
+      width: 80px;
+      color: var(--text-secondary);
+      flex-shrink: 0;
+    }
+
+    .hex-bytes {
+      flex: 1;
+      display: flex;
+      gap: 4px;
+    }
+
+    .hex-byte {
+      width: 22px;
+      text-align: center;
+      cursor: pointer;
+      padding: 1px 2px;
+    }
+
+    .hex-byte:hover {
+      background: var(--border);
+    }
+
+    .hex-byte.selected {
+      background: var(--selection-bg);
+      color: var(--selection-text);
+    }
+
+    .hex-byte.cursor {
+      outline: 1px solid var(--selection-bg);
+    }
+
+    .hex-byte.editing {
+      background: var(--accent);
+      color: var(--bg);
+    }
+
+    /* Chunk type colors for bytes */
+    .hex-byte.chunk-signature { color: var(--chunk-signature); }
+    .hex-byte.chunk-ihdr { color: var(--chunk-ihdr); }
+    .hex-byte.chunk-plte { color: var(--chunk-plte); }
+    .hex-byte.chunk-idat { color: var(--chunk-idat); }
+    .hex-byte.chunk-iend { color: var(--chunk-iend); }
+    .hex-byte.chunk-ancillary { color: var(--chunk-ancillary); }
+    .hex-byte.chunk-crc { color: var(--chunk-crc); }
+
+    /* Pixel mode - scanline coloring */
+    .hex-byte.scanline-even { color: var(--chunk-idat); }
+    .hex-byte.scanline-odd { color: var(--chunk-ihdr); }
+    .hex-byte.filter-byte { color: var(--chunk-signature); font-weight: bold; }
+
+    .ascii {
+      width: 160px;
+      color: var(--text-muted);
+      text-align: right;
+      white-space: pre;
+      flex-shrink: 0;
+    }
+
+    .ascii-char.selected {
+      background: var(--selection-bg);
+      color: var(--selection-text);
+    }
+
+    /* Status bar */
+    #status {
+      height: var(--status-height);
+      background: var(--surface);
+      border-top: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      padding: 0 16px;
+      gap: 24px;
+      font-size: var(--font-size-status);
+      flex-shrink: 0;
+    }
+
+    .status-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .status-label {
+      color: var(--text-secondary);
+    }
+
+    .status-value {
+      color: var(--text-primary);
+    }
+
+    .status-indicator {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+    }
+
+    .status-indicator.valid {
+      background: var(--chunk-idat);
+    }
+
+    .status-indicator.invalid {
+      background: var(--chunk-invalid);
+    }
+
+    /* Hidden file input */
+    #file-input {
+      display: none;
+    }
+
+    /* Edit dialog */
+    #edit-dialog {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.8);
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+    }
+
+    #edit-dialog.visible {
+      display: flex;
+    }
+
+    .dialog-content {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      padding: 24px;
+      min-width: 300px;
+    }
+
+    .dialog-title {
+      font-size: 14px;
+      font-weight: 600;
+      margin-bottom: 16px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .dialog-input {
+      width: 100%;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      color: var(--text-primary);
+      font-family: var(--font-mono);
+      font-size: var(--font-size-hex);
+      padding: 8px 12px;
+      margin-bottom: 16px;
+    }
+
+    .dialog-input:focus {
+      outline: none;
+      border-color: var(--accent);
+    }
+
+    .dialog-buttons {
+      display: flex;
+      gap: 8px;
+      justify-content: flex-end;
+    }
+
+    /* ========== EFFECTS PANEL ========== */
+    #effects-panel {
+      width: 320px;
+      min-width: 220px;
+      max-width: 600px;
+      display: flex;
+      flex-direction: column;
+      border-left: 1px solid var(--border);
+      background: var(--bg);
+      flex-shrink: 0;
+    }
+
+    #effects-header {
+      height: 40px;
+      padding: 0 12px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid var(--border);
+      background: var(--surface);
+      flex-shrink: 0;
+    }
+
+    #effects-header-title {
+      font-family: var(--font-sans);
+      font-size: var(--font-size-xs);
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--text-secondary);
+    }
+
+    #effects-header-buttons {
+      display: flex;
+      gap: 4px;
+      position: relative; /* For fallback positioning */
+    }
+
+    #effects-header-buttons button {
+      padding: 6px 12px;
+      font-size: var(--font-size-sm);
+    }
+
+    #effects-content {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    #layer-list {
+      flex: 1;
+      overflow-y: auto;
+    }
+
+    #layer-list:empty::after {
+      content: 'No effects applied';
+      display: block;
+      padding: 24px 16px;
+      color: var(--text-muted);
+      font-size: var(--font-size-label);
+      text-align: center;
+    }
+
+    .layer-item {
+      border-bottom: 1px solid var(--border);
+    }
+
+    .layer-item.dragging {
+      opacity: 0.5;
+      background: var(--surface);
+    }
+
+    .layer-item.drop-target {
+      border-top: 2px solid var(--accent);
+    }
+
+    .layer-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 12px;
+      cursor: pointer;
+      background: var(--surface);
+    }
+
+    .layer-header:hover {
+      background: var(--border);
+    }
+
+    .layer-drag-handle {
+      cursor: grab;
+      color: var(--text-muted);
+      font-size: 12px;
+      user-select: none;
+      padding: 4px 2px;
+      margin: -4px 0;
+    }
+
+    .layer-drag-handle:hover {
+      color: var(--text-primary);
+    }
+
+    .layer-drag-handle:active {
+      cursor: grabbing;
+    }
+
+    .layer-toggle {
+      width: 14px;
+      height: 14px;
+      accent-color: var(--accent);
+    }
+
+    .layer-name {
+      flex: 1;
+      font-family: var(--font-sans);
+      font-size: var(--font-size-sm);
+      font-weight: 500;
+    }
+
+    .layer-delete-btn {
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      cursor: pointer;
+      padding: 2px 4px;
+      font-size: 10px;
+    }
+
+    .layer-delete-btn:hover {
+      color: var(--text-primary);
+    }
+
+    .layer-params {
+      padding: 8px 10px 12px 36px;
+      background: var(--bg);
+    }
+
+    .param-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+
+    .param-row:last-child {
+      margin-bottom: 0;
+    }
+
+    .param-label {
+      width: 70px;
+      font-family: var(--font-sans);
+      font-size: var(--font-size-xs);
+      color: var(--text-secondary);
+      flex-shrink: 0;
+    }
+
+    .param-row input[type="range"] {
+      flex: 1;
+      height: 4px;
+      -webkit-appearance: none;
+      background: var(--border);
+      cursor: pointer;
+    }
+
+    .param-row input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 12px;
+      height: 12px;
+      background: var(--accent);
+      border-radius: 50%;
+      cursor: pointer;
+    }
+
+    .param-row input[type="checkbox"] {
+      accent-color: var(--accent);
+    }
+
+    .param-row select {
+      flex: 1;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      color: var(--text-primary);
+      font-family: var(--font-sans);
+      font-size: var(--font-size-xs);
+      padding: 4px 8px;
+      border-radius: 3px;
+    }
+
+    .param-value {
+      width: 45px;
+      text-align: right;
+      font-family: var(--font-mono);
+      font-size: var(--font-size-xs);
+      color: var(--text-secondary);
+      flex-shrink: 0;
+    }
+
+    /* Effect picker dropdown - CSS Anchor Positioning */
+    #btn-add-effect {
+      anchor-name: --add-effect-btn;
+    }
+
+    #effect-picker {
+      position: absolute;
+      position-anchor: --add-effect-btn;
+      top: anchor(bottom);
+      right: anchor(right);
+      position-try-fallbacks: flip-block;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      width: min(480px, 90vw);
+      max-height: min(500px, 70vh);
+      overflow-y: auto;
+      z-index: 60;
+      display: none;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    }
+
+    /* Fallback for browsers without anchor positioning */
+    @supports not (anchor-name: --x) {
+      #effect-picker {
+        top: 100%;
+        right: 0;
+        margin-top: 4px;
+      }
+    }
+
+    #effect-picker.visible {
+      display: block;
+    }
+
+    .effect-category {
+      padding: 10px 12px;
+    }
+
+    .effect-category:not(:last-child) {
+      border-bottom: 1px solid var(--border);
+    }
+
+    .category-header {
+      font-family: var(--font-sans);
+      font-size: var(--font-size-xs);
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--text-secondary);
+      padding: 0 0 8px;
+    }
+
+    .category-effects {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 4px;
+    }
+
+    .effect-option {
+      padding: 8px 10px;
+      cursor: pointer;
+      font-family: var(--font-sans);
+      font-size: var(--font-size-sm);
+      border-radius: 4px;
+      background: var(--bg);
+      color: var(--text-primary);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      transition: background 0.1s;
+    }
+
+    .effect-option:hover {
+      background: var(--accent);
+      color: var(--bg);
+    }
+
+    /* Resizer for effects panel */
+    #resizer-effects {
+      width: 6px;
+      background: var(--border);
+      cursor: col-resize;
+      flex-shrink: 0;
+      transition: background 0.1s;
+    }
+
+    #resizer-effects:hover,
+    #resizer-effects.active {
+      background: var(--accent);
+    }
+
+    /* ========== FOCUS STYLES ========== */
+
+    /* Base focus ring - use focus-visible for keyboard-only focus */
+    :focus {
+      outline: none;
+    }
+
+    :focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: 2px;
+    }
+
+    /* Buttons */
+    button:focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: 2px;
+    }
+
+    #header-buttons button:focus-visible {
+      background: var(--border);
+      color: var(--text-primary);
+      outline: 2px solid var(--accent);
+      outline-offset: -2px;
+    }
+
+    /* Inputs */
+    input:focus-visible,
+    select:focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: 0;
+      border-color: var(--accent);
+    }
+
+    .dialog-input:focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: 0;
+      border-color: var(--accent);
+    }
+
+    /* Mode toggle switch - focus on the label since checkbox is hidden */
+    .mode-switch:focus-within {
+      outline: 2px solid var(--accent);
+      outline-offset: 2px;
+    }
+
+    .mode-switch input:focus-visible + .mode-switch-slider {
+      box-shadow: 0 0 0 2px var(--accent);
+    }
+
+    /* Chunk items - keyboard navigable */
+    .chunk-item:focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: -2px;
+      background: var(--surface);
+    }
+
+    /* Effect picker options */
+    .effect-option:focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: -2px;
+      background: var(--accent);
+      color: var(--bg);
+    }
+
+    /* Layer controls */
+    .layer-header:focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: -2px;
+    }
+
+    .layer-toggle:focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: 2px;
+    }
+
+    .layer-delete-btn:focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: 0;
+      color: var(--text-primary);
+    }
+
+    .layer-drag-handle:focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: 0;
+      color: var(--text-primary);
+    }
+
+    /* Range inputs */
+    .param-row input[type="range"]:focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: 2px;
+    }
+
+    /* Select dropdowns in params */
+    .param-row select:focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: 0;
+      border-color: var(--accent);
+    }
+
+    /* Hex bytes - show focus when navigating with keyboard */
+    .hex-byte:focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: -1px;
+    }
+
+    /* Resizers - make them focusable for keyboard users */
+    #resizer:focus-visible,
+    #resizer-effects:focus-visible {
+      background: var(--accent);
+      outline: none;
+    }
+
+    /* Dropzone focus */
+    #dropzone:focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: -4px;
+      background: rgba(78, 205, 196, 0.05);
+    }
+
+    /* Hex scroll container focus */
+    #hex-scroll:focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: -2px;
+    }
+
+    /* Skip links for accessibility (hidden until focused) */
+    .skip-link {
+      position: absolute;
+      top: -40px;
+      left: 0;
+      background: var(--accent);
+      color: var(--bg);
+      padding: 8px 16px;
+      z-index: 1000;
+      font-weight: 600;
+      text-decoration: none;
+      transition: top 0.2s;
+    }
+
+    .skip-link:nth-of-type(2) {
+      left: auto;
+      right: 0;
+    }
+
+    .skip-link:focus {
+      top: 0;
+    }
