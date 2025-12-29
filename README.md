@@ -1,8 +1,15 @@
 # ĞŁİŦČĦƎĐİŦ
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![GitHub Pages](https://img.shields.io/badge/demo-live-brightgreen)](https://helgesverre.github.io/glitchedit/)
+[![No Dependencies](https://img.shields.io/badge/dependencies-none-blue)](https://github.com/helgesverre/glitchedit)
+[![Single File](https://img.shields.io/badge/single%20file-HTML-orange)](https://github.com/helgesverre/glitchedit)
+
 A browser-based PNG hex editor for creating glitch art through direct byte manipulation.
 
 **[Try it live](https://helgesverre.github.io/glitchedit/)** | Single HTML file | No dependencies | Works offline
+
+![Screenshot](screenshot.png)
 
 ## Features
 
