@@ -1,0 +1,21 @@
+{
+  "name": "glitchedit",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "start": "npx serve .",
+    "dev": "npx serve .",
+    "build": "bun build ./script.js --outdir ./dist --minify && cp index.html style.css dist/ && cp -r assets dist/",
+    "build:bundle": "bun run scripts/bundle.js",
+    "generate-previews": "node scripts/generate-help-previews.mjs",
+    "test": "npx playwright test",
+    "test:ui": "npx playwright test --ui"
+  },
+  "dependencies": {
+    "sharp": "^0.34.5"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.57.0",
+    "playwright": "^1.57.0"
+  }
+}

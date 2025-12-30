@@ -28,6 +28,10 @@ node_modules/
 dist/
 .parcel-cache/
 
+# Test artifacts
+test-results/
+playwright-report/
+
 # Environment files
 .env
 .env.local
