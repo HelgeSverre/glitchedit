@@ -3,13 +3,13 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>ĞŁİŦČĦƎĐİŦ</title>
+  <title>GĻƗŦÇĦɆĐƗŦ</title>
 
   <link rel="stylesheet" href="./style.css">
 
   <!-- Scripts -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js"></script>
-  <script defer src="./script.js"></script>
+  <script type="module" src="./script.js"></script>
 </head>
 <body>
   <a href="#effects-panel" class="skip-link">Skip to effects</a>
@@ -17,18 +17,13 @@
   <div id="app">
     <!-- Header -->
     <header id="header">
-      <h1>ĞŁİŦČĦƎĐİŦ</h1>
+      <h1>GĻƗŦÇĦɆĐƗŦ</h1>
       <div id="header-buttons">
-        <button id="btn-load">Open PNG</button>
-        <button id="btn-random">Random Image</button>
-        <label class="mode-switch" title="Toggle between decoded pixel data and raw file bytes">
-          <input type="checkbox" id="mode-toggle">
-          <span class="mode-switch-slider"></span>
-          <span class="mode-switch-label mode-switch-label-left">Pixel</span>
-          <span class="mode-switch-label mode-switch-label-right">Raw</span>
-        </label>
-        <button id="btn-save" disabled>Export PNG</button>
-        <button id="btn-save-raw" disabled>Save Raw</button>
+        <button id="btn-load">Open</button>
+        <button id="btn-random">Random image</button>
+        <button id="btn-randomize-effects" disabled><span class="glitch-letter">G</span><span class="glitch-letter">l</span><span class="glitch-letter">i</span><span class="glitch-letter">t</span><span class="glitch-letter">c</span><span class="glitch-letter">h</span><span class="glitch-letter">!</span></button>
+        <button id="btn-save" disabled>Download</button>
+        <button id="btn-help">?</button>
       </div>
     </header>
 
@@ -118,10 +113,6 @@
         <span class="status-indicator" id="status-valid"></span>
         <span class="status-value" id="status-valid-text">-</span>
       </div>
-      <div class="status-item">
-        <span class="status-label">Mode:</span>
-        <span class="status-value" id="status-mode">-</span>
-      </div>
     </footer>
 
     <!-- Hidden file input -->
@@ -138,6 +129,15 @@
         </div>
       </div>
     </div>
+
+    <!-- Help dialog -->
+    <dialog id="help-dialog">
+      <div class="help-header">
+        <h2>Effects Guide</h2>
+        <button id="help-close" aria-label="Close">&times;</button>
+      </div>
+      <div class="help-content"></div>
+    </dialog>
   </div>
 
 
