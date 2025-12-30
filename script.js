@@ -274,7 +274,7 @@ import {
       }
 
       try {
-        return pako.inflate(compressed);
+        return fflate.unzlibSync(compressed);
       } catch (e) {
         console.error('Failed to decompress IDAT:', e);
         return null;
@@ -285,8 +285,8 @@ import {
       if (!state.pixelData || !state.imageInfo) return;
 
       try {
-        // Compress pixel data
-        const compressed = pako.deflate(state.pixelData);
+        // Compress pixel data (level 1 for fast preview)
+        const compressed = fflate.zlibSync(state.pixelData, { level: 1 });
 
         // Find IDAT chunks in original buffer
         const idatChunks = state.chunks.filter(c => c.type === 'IDAT');
@@ -745,7 +745,42 @@ import {
 
       let buffer = state.buffer;
 
-      if (fixCrc) {
+      // Re-compress with quality level if we have pixel data (preview uses level 1)
+      if (state.pixelData && state.editMode === 'pixel') {
+        const compressed = fflate.zlibSync(state.pixelData, { level: 6 });
+
+        // Find IDAT chunks to rebuild buffer with quality compression
+        const idatChunks = state.chunks.filter(c => c.type === 'IDAT');
+        if (idatChunks.length > 0) {
+          const firstIDAT = idatChunks[0];
+          const lastIDAT = idatChunks[idatChunks.length - 1];
+          const beforeIDAT = firstIDAT.offset;
+          const afterIDAT = lastIDAT.offset + lastIDAT.length;
+          const newIDATLength = 12 + compressed.length;
+
+          const newBufferSize = beforeIDAT + newIDATLength + (state.buffer.length - afterIDAT);
+          buffer = new Uint8Array(newBufferSize);
+
+          buffer.set(state.buffer.slice(0, beforeIDAT), 0);
+
+          let pos = beforeIDAT;
+          buffer[pos++] = (compressed.length >>> 24) & 0xFF;
+          buffer[pos++] = (compressed.length >>> 16) & 0xFF;
+          buffer[pos++] = (compressed.length >>> 8) & 0xFF;
+          buffer[pos++] = compressed.length & 0xFF;
+          buffer[pos++] = 0x49; buffer[pos++] = 0x44; buffer[pos++] = 0x41; buffer[pos++] = 0x54;
+          buffer.set(compressed, pos);
+          pos += compressed.length;
+
+          const crc = crc32(buffer.slice(beforeIDAT + 4, pos));
+          buffer[pos++] = (crc >>> 24) & 0xFF;
+          buffer[pos++] = (crc >>> 16) & 0xFF;
+          buffer[pos++] = (crc >>> 8) & 0xFF;
+          buffer[pos++] = crc & 0xFF;
+
+          buffer.set(state.buffer.slice(afterIDAT), pos);
+        }
+      } else if (fixCrc) {
         // Create a copy and fix all CRCs
         buffer = state.buffer.slice();
         for (const chunk of state.chunks) {
@@ -1478,6 +1513,62 @@ import {
 
     // Random image button
     elements.btnRandom.addEventListener('click', loadRandomImage);
+
+    // Glitch button - add random effects
+    elements.btnRandomizeEffects.addEventListener('click', () => {
+      if (!state.layerStack.originalPixelData) return;
+
+      // Clear existing layers
+      while (state.layerStack.layers.length > 0) {
+        removeLayer(state.layerStack.layers[0].id);
+      }
+
+      // Get all effect IDs
+      const allEffects = Array.from(effectRegistry.keys());
+
+      // Pick 3-6 random effects
+      const numEffects = 3 + Math.floor(Math.random() * 4);
+      const shuffled = allEffects.sort(() => Math.random() - 0.5);
+      const selectedEffects = shuffled.slice(0, numEffects);
+
+      // Add each effect with randomized parameters
+      for (const effectId of selectedEffects) {
+        const effect = effectRegistry.get(effectId);
+        const layer = {
+          id: generateLayerId(),
+          effectId: effectId,
+          enabled: true,
+          params: {},
+          seed: Math.floor(Math.random() * 2147483647)
+        };
+
+        // Randomize parameters
+        for (const param of effect.parameters) {
+          if (param.type === 'slider') {
+            // Random value within range
+            layer.params[param.id] = param.min + Math.random() * (param.max - param.min);
+            // Round to step
+            if (param.step) {
+              layer.params[param.id] = Math.round(layer.params[param.id] / param.step) * param.step;
+            }
+          } else if (param.type === 'checkbox') {
+            layer.params[param.id] = Math.random() > 0.5;
+          } else if (param.type === 'dropdown') {
+            const options = param.options;
+            layer.params[param.id] = options[Math.floor(Math.random() * options.length)].value;
+          } else {
+            layer.params[param.id] = param.default;
+          }
+        }
+
+        state.layerStack.layers.push(layer);
+      }
+
+      // Invalidate cache and re-render
+      invalidateFromLayer(0);
+      renderLayerStack();
+      renderLayerList();
+    });
 
     // Hex scroll
     elements.hexScroll.addEventListener('scroll', updateVirtualScroll);

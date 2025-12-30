@@ -90,4 +90,23 @@ test.describe('GlitchEdit App', () => {
     const pickerOptions = await page.locator('#effect-picker .effect-option').count();
     expect(pickerOptions).toBe(48); // 48 effects
   });
+
+  test('glitch button adds random effects', async ({ page }) => {
+    await page.goto('/');
+    await page.waitForLoadState('networkidle');
+
+    // Wait for image to load (button should be enabled)
+    await expect(page.locator('#btn-randomize-effects')).toBeEnabled({ timeout: 5000 });
+
+    // Click the Glitch button
+    await page.click('#btn-randomize-effects');
+
+    // Wait a moment for effects to be processed
+    await page.waitForTimeout(1000);
+
+    // Should have added 3-6 layers
+    const layerCount = await page.locator('#layer-list .layer-item').count();
+    expect(layerCount).toBeGreaterThanOrEqual(3);
+    expect(layerCount).toBeLessThanOrEqual(6);
+  });
 });

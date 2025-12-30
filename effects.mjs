@@ -32,6 +32,21 @@ export function logScaleBidirectional(value, max, actualMax, power = 2.5) {
   return sign * Math.pow(Math.abs(value) / max, power) * actualMax;
 }
 
+// Fast sine lookup table (4096 entries = ~0.0015 rad resolution)
+const SINE_TABLE_SIZE = 4096;
+const SINE_TABLE = new Float32Array(SINE_TABLE_SIZE);
+const TWO_PI = Math.PI * 2;
+for (let i = 0; i < SINE_TABLE_SIZE; i++) {
+  SINE_TABLE[i] = Math.sin((i / SINE_TABLE_SIZE) * TWO_PI);
+}
+
+export function fastSin(x) {
+  // Normalize to [0, 2π) and lookup
+  const normalized = ((x % TWO_PI) + TWO_PI) % TWO_PI;
+  const index = (normalized / TWO_PI * SINE_TABLE_SIZE) | 0;
+  return SINE_TABLE[index];
+}
+
 // Simplex noise implementation (fast 2D noise)
 export const simplexNoise = (() => {
   const F2 = 0.5 * (Math.sqrt(3) - 1);
@@ -1463,9 +1478,9 @@ registerEffect({
         const offset = rowStart + x * bytesPerPixel;
 
         for (let c = 0; c < Math.min(3, bytesPerPixel); c++) {
-          const plasma = Math.sin(x * freq * freqMult[c] + phases[c]) +
-                        Math.sin(y * freq * freqMult[c] + phases[c] + 1) +
-                        Math.sin((x + y) * freq * 0.7 + phases[c] + 2);
+          const plasma = fastSin(x * freq * freqMult[c] + phases[c]) +
+                        fastSin(y * freq * freqMult[c] + phases[c] + 1) +
+                        fastSin((x + y) * freq * 0.7 + phases[c] + 2);
           const plasmaVal = ((plasma / 3) + 1) * 0.5 * amp;
 
           const original = pixelData[offset + c];

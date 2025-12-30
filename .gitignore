@@ -32,6 +32,9 @@ dist/
 test-results/
 playwright-report/
 
+# Performance profiles
+profiles/*.cpuprofile
+
 # Environment files
 .env
 .env.local

@@ -56,6 +56,26 @@ npm run generate-previews
 npm run build:bundle
 ```
 
+### Build Commands
+
+| Command | Description |
+|---------|-------------|
+| `npm start` | Start local dev server at localhost:3000 |
+| `npm test` | Run Playwright e2e tests |
+| `npm run build:bundle` | Create single-file `dist/glitchedit.html` (~2.8MB) |
+| `npm run generate-previews` | Regenerate effect preview thumbnails |
+| `npm run profile` | Profile CPU performance with Playwright + CDP |
+
+### Single-File Build
+
+The `build:bundle` command creates a standalone HTML file with all assets inlined:
+- CSS embedded in `<style>` tags
+- JavaScript bundled and minified with [Bun](https://bun.sh)
+- Effect preview images as base64 data URIs
+- [fflate](https://github.com/101arrowz/fflate) compression library inlined
+
+**Requires:** [Bun](https://bun.sh) runtime (`npm install -g bun` or see bun.sh for installation)
+
 ## Usage
 
 1. Open the app - a random image loads automatically
@@ -112,7 +132,8 @@ PNG files have a specific structure: signature bytes followed by chunks (IHDR, I
 │   └── effect-previews.json  # Pre-generated effect thumbnails
 ├── scripts/
 │   ├── generate-help-previews.mjs  # Preview generator
-│   └── bundle.js       # Single-file bundler
+│   ├── bundle.js       # Single-file bundler
+│   └── profile-performance.js      # CPU profiler (Playwright + CDP)
 └── tests/
     └── app.spec.js     # Playwright e2e tests
 ```

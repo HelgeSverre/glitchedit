@@ -9,7 +9,9 @@
     "build:bundle": "bun run scripts/bundle.js",
     "generate-previews": "node scripts/generate-help-previews.mjs",
     "test": "npx playwright test",
-    "test:ui": "npx playwright test --ui"
+    "test:ui": "npx playwright test --ui",
+    "profile": "node scripts/profile-performance.js",
+    "profile:headless": "node scripts/profile-performance.js --headless"
   },
   "dependencies": {
     "sharp": "^0.34.5"
