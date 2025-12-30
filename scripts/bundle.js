@@ -14,6 +14,11 @@ const rootDir = join(__dirname, '..');
 async function bundle() {
   console.log('Bundling GlitchEdit...');
 
+  // Read version from package.json
+  const pkg = JSON.parse(await readFile(join(rootDir, 'package.json'), 'utf-8'));
+  const version = pkg.version;
+  console.log(`Version: ${version}`);
+
   // Bundle JS with Bun
   const result = await Bun.build({
     entrypoints: [join(rootDir, 'script.js')],
@@ -35,6 +40,9 @@ async function bundle() {
 
   // Read HTML template
   let html = await readFile(join(rootDir, 'index.html'), 'utf-8');
+
+  // Inject version from package.json
+  html = html.replace(/<span class="version">v[\d.]+<\/span>/, `<span class="version">v${version}</span>`);
 
   // Read effect previews and inline them
   let effectPreviews = '{}';

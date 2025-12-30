@@ -1,17 +1,56 @@
 {
   "name": "glitchedit",
-  "version": "1.0.0",
+  "version": "1.1.0",
+  "description": "A PNG glitch art editor with hex editing and visual effects",
   "type": "module",
+  "bin": {
+    "glitchedit": "./bin/cli.js"
+  },
+  "files": [
+    "bin/",
+    "dist/glitchedit.html",
+    "assets/sample.png"
+  ],
   "scripts": {
     "start": "npx serve .",
     "dev": "npx serve .",
     "build": "bun build ./script.js --outdir ./dist --minify && cp index.html style.css dist/ && cp -r assets dist/",
     "build:bundle": "bun run scripts/bundle.js",
+    "build:exe": "bun run build:bundle && bun build --compile --minify ./server.ts --outfile dist/glitchedit",
+    "build:exe:all": "bun run build:bundle && bun run build:exe:linux && bun run build:exe:mac-arm && bun run build:exe:mac-x64 && bun run build:exe:windows",
+    "build:exe:linux": "bun build --compile --minify --target=bun-linux-x64 ./server.ts --outfile dist/glitchedit-linux-x64",
+    "build:exe:mac-arm": "bun build --compile --minify --target=bun-darwin-arm64 ./server.ts --outfile dist/glitchedit-darwin-arm64",
+    "build:exe:mac-x64": "bun build --compile --minify --target=bun-darwin-x64 ./server.ts --outfile dist/glitchedit-darwin-x64",
+    "build:exe:windows": "bun build --compile --minify --target=bun-windows-x64 ./server.ts --outfile dist/glitchedit-windows-x64.exe",
+    "prepublishOnly": "bun run build:bundle",
     "generate-previews": "node scripts/generate-help-previews.mjs",
     "test": "npx playwright test",
     "test:ui": "npx playwright test --ui",
     "profile": "node scripts/profile-performance.js",
     "profile:headless": "node scripts/profile-performance.js --headless"
+  },
+  "keywords": [
+    "glitch",
+    "glitch-art",
+    "png",
+    "image-editor",
+    "hex-editor",
+    "databending",
+    "pixel-art",
+    "visual-effects"
+  ],
+  "author": "Helge Sverre <helge.sverre@gmail.com>",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/helgesverre/glitchedit.git"
+  },
+  "homepage": "https://github.com/helgesverre/glitchedit#readme",
+  "bugs": {
+    "url": "https://github.com/helgesverre/glitchedit/issues"
+  },
+  "engines": {
+    "node": ">=18"
   },
   "dependencies": {
     "sharp": "^0.34.5"

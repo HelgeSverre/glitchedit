@@ -1,5 +1,7 @@
 # GĻƗŦÇĦɆĐƗŦ
 
+[![npm version](https://img.shields.io/npm/v/glitchedit.svg?style=flat)](https://www.npmjs.com/package/glitchedit)
+[![CI](https://github.com/helgesverre/glitchedit/actions/workflows/ci.yml/badge.svg)](https://github.com/helgesverre/glitchedit/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=flat)](https://opensource.org/licenses/MIT)
 [![Demo](https://img.shields.io/badge/demo-live-brightgreen?style=flat)](https://helgesverre.github.io/glitchedit/)
 
@@ -17,25 +19,47 @@ A browser-based PNG glitch art editor with 48 real-time effects and direct byte 
 - **Chunk Navigator** - Visual breakdown of PNG structure (IHDR, IDAT, IEND, etc.)
 - **CRC Auto-fix** - Automatically recalculates checksums on save
 
-## Quick Start
+## Installation
+
+### Option 1: npx (recommended)
 
 ```bash
-# Clone and run
+npx glitchedit
+```
+
+Opens the editor in your browser automatically.
+
+### Option 2: Standalone binary
+
+Download the latest release for your platform from [Releases](https://github.com/helgesverre/glitchedit/releases):
+
+| Platform | Download |
+|----------|----------|
+| macOS (Apple Silicon) | `glitchedit-darwin-arm64.tar.gz` |
+| macOS (Intel) | `glitchedit-darwin-x64.tar.gz` |
+| Linux (x64) | `glitchedit-linux-x64.tar.gz` |
+| Windows (x64) | `glitchedit-windows-x64.zip` |
+
+```bash
+# Extract and run
+tar -xzf glitchedit-darwin-arm64.tar.gz
+./glitchedit-darwin-arm64
+```
+
+### Option 3: From source
+
+```bash
 git clone https://github.com/helgesverre/glitchedit.git
 cd glitchedit
-npx serve .
+npm install
+npm start
 ```
 
 Then open http://localhost:3000 in your browser.
 
-### Alternative: Single-file build
+### Option 4: Single HTML file
 
-```bash
-# Build standalone HTML file (includes all effects)
-bun run build:bundle
-
-# Open dist/glitchedit.html in your browser
-```
+Download `glitchedit.html` from [Releases](https://github.com/helgesverre/glitchedit/releases) and open it in your browser. No server required.
 
 ## Development
 
@@ -62,7 +86,9 @@ npm run build:bundle
 |---------|-------------|
 | `npm start` | Start local dev server at localhost:3000 |
 | `npm test` | Run Playwright e2e tests |
-| `npm run build:bundle` | Create single-file `dist/glitchedit.html` (~2.8MB) |
+| `npm run build:bundle` | Create single-file `dist/glitchedit.html` (~3.7MB) |
+| `npm run build:exe` | Build standalone binary for current platform |
+| `npm run build:exe:all` | Build binaries for all platforms |
 | `npm run generate-previews` | Regenerate effect preview thumbnails |
 | `npm run profile` | Profile CPU performance with Playwright + CDP |
 
@@ -128,12 +154,17 @@ PNG files have a specific structure: signature bytes followed by chunks (IHDR, I
 ├── style.css           # Styles
 ├── script.js           # App logic
 ├── effects.mjs         # 48 effect implementations (shared module)
+├── server.ts           # Bun server for standalone binary
+├── bin/
+│   └── cli.js          # Node.js CLI for npx
 ├── assets/
 │   └── effect-previews.json  # Pre-generated effect thumbnails
 ├── scripts/
 │   ├── generate-help-previews.mjs  # Preview generator
 │   ├── bundle.js       # Single-file bundler
 │   └── profile-performance.js      # CPU profiler (Playwright + CDP)
+├── .github/
+│   └── workflows/      # CI/CD pipelines
 └── tests/
     └── app.spec.js     # Playwright e2e tests
 ```

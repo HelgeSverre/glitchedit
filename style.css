@@ -131,12 +131,36 @@
       flex-shrink: 0;
     }
 
+    #header-brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
     #header h1 {
       font-size: 14px;
       font-weight: 600;
       letter-spacing: 3px;
       text-transform: uppercase;
       color: var(--text-primary);
+    }
+
+    #header-brand .version {
+      font-size: var(--font-size-xs);
+      font-family: var(--font-mono);
+      color: var(--text-muted);
+      letter-spacing: 0;
+    }
+
+    #header-brand .github-link {
+      display: flex;
+      align-items: center;
+      color: var(--text-muted);
+      transition: color 0.15s ease;
+    }
+
+    #header-brand .github-link:hover {
+      color: var(--text-secondary);
     }
 
     #header-buttons {

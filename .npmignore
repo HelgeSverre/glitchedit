@@ -1,0 +1,29 @@
+# Development files
+scripts/
+profiles/
+tests/
+test-results/
+playwright-report/
+playwright.config.js
+
+# Source files (only dist is needed)
+script.js
+style.css
+index.html
+effects.mjs
+server.ts
+
+# Config and docs
+.github/
+.idea/
+.gitignore
+.DS_Store
+*.md
+!README.md
+
+# Media
+screenshot.png
+
+# Lock files
+package-lock.json
+bun.lockb
