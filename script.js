@@ -1,3 +1,12 @@
+import {
+  effectRegistry,
+  createSeededRNG,
+  logScale,
+  logScaleBidirectional,
+  simplexNoise,
+  getDefaultParams,
+  effectDescriptions
+} from './effects.mjs';
 
     // ========== PNG PARSER ==========
 
@@ -211,108 +220,9 @@
       }
     };
 
-    // ========== EFFECT REGISTRY ==========
-
-    const effectRegistry = new Map();
-
-    function registerEffect(descriptor) {
-      effectRegistry.set(descriptor.id, descriptor);
-    }
-
-    // Seeded random number generator (mulberry32)
-    function createSeededRNG(seed) {
-      return function() {
-        let t = seed += 0x6D2B79F5;
-        t = Math.imul(t ^ t >>> 15, t | 1);
-        t ^= t + Math.imul(t ^ t >>> 7, t | 61);
-        return ((t ^ t >>> 14) >>> 0) / 4294967296;
-      };
-    }
-
-    // Logarithmic scale for subtle effect control
-    // Maps slider value (0-max) to actual value using power curve
-    // Low slider values = very subtle, high values = stronger
-    function logScale(value, max, actualMax, power = 2) {
-      return Math.pow(value / max, power) * actualMax;
-    }
-
-    // Bidirectional log scale (for values that can be negative)
-    function logScaleBidirectional(value, max, actualMax, power = 2) {
-      const sign = value < 0 ? -1 : 1;
-      return sign * Math.pow(Math.abs(value) / max, power) * actualMax;
-    }
-
-    // Simplex noise implementation (fast 2D noise)
-    const simplexNoise = (() => {
-      const F2 = 0.5 * (Math.sqrt(3) - 1);
-      const G2 = (3 - Math.sqrt(3)) / 6;
-      const grad3 = [[1,1],[-1,1],[1,-1],[-1,-1],[1,0],[-1,0],[0,1],[0,-1]];
-      let perm = new Uint8Array(512);
-
-      function seed(s) {
-        const rng = createSeededRNG(s);
-        const p = new Uint8Array(256);
-        for (let i = 0; i < 256; i++) p[i] = i;
-        for (let i = 255; i > 0; i--) {
-          const j = Math.floor(rng() * (i + 1));
-          [p[i], p[j]] = [p[j], p[i]];
-        }
-        for (let i = 0; i < 512; i++) perm[i] = p[i & 255];
-      }
-      seed(0);
-
-      function noise2D(x, y) {
-        const s = (x + y) * F2;
-        const i = Math.floor(x + s), j = Math.floor(y + s);
-        const t = (i + j) * G2;
-        const X0 = i - t, Y0 = j - t;
-        const x0 = x - X0, y0 = y - Y0;
-        const i1 = x0 > y0 ? 1 : 0, j1 = x0 > y0 ? 0 : 1;
-        const x1 = x0 - i1 + G2, y1 = y0 - j1 + G2;
-        const x2 = x0 - 1 + 2 * G2, y2 = y0 - 1 + 2 * G2;
-        const ii = i & 255, jj = j & 255;
-        const gi0 = perm[ii + perm[jj]] & 7;
-        const gi1 = perm[ii + i1 + perm[jj + j1]] & 7;
-        const gi2 = perm[ii + 1 + perm[jj + 1]] & 7;
-        let n0 = 0, n1 = 0, n2 = 0;
-        let t0 = 0.5 - x0*x0 - y0*y0;
-        if (t0 >= 0) { t0 *= t0; n0 = t0 * t0 * (grad3[gi0][0]*x0 + grad3[gi0][1]*y0); }
-        let t1 = 0.5 - x1*x1 - y1*y1;
-        if (t1 >= 0) { t1 *= t1; n1 = t1 * t1 * (grad3[gi1][0]*x1 + grad3[gi1][1]*y1); }
-        let t2 = 0.5 - x2*x2 - y2*y2;
-        if (t2 >= 0) { t2 *= t2; n2 = t2 * t2 * (grad3[gi2][0]*x2 + grad3[gi2][1]*y2); }
-        return 70 * (n0 + n1 + n2); // Returns -1 to 1
-      }
-
-      // Fractal Brownian Motion (layered noise)
-      function fbm(x, y, octaves = 4, lacunarity = 2, persistence = 0.5) {
-        let value = 0, amplitude = 1, frequency = 1, maxValue = 0;
-        for (let i = 0; i < octaves; i++) {
-          value += amplitude * noise2D(x * frequency, y * frequency);
-          maxValue += amplitude;
-          amplitude *= persistence;
-          frequency *= lacunarity;
-        }
-        return value / maxValue;
-      }
-
-      return { seed, noise2D, fbm };
-    })();
-
     // Generate unique layer ID
     function generateLayerId() {
       return 'layer_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
-    }
-
-    // Get default parameters for an effect
-    function getDefaultParams(effectId) {
-      const effect = effectRegistry.get(effectId);
-      if (!effect) return {};
-      const params = {};
-      for (const param of effect.parameters) {
-        params[param.id] = param.default;
-      }
-      return params;
     }
 
     // ========== IHDR PARSING ==========
@@ -455,10 +365,8 @@
       fileInput: document.getElementById('file-input'),
       btnLoad: document.getElementById('btn-load'),
       btnRandom: document.getElementById('btn-random'),
-      modeToggle: document.getElementById('mode-toggle'),
       btnSave: document.getElementById('btn-save'),
-      btnSaveRaw: document.getElementById('btn-save-raw'),
-      statusMode: document.getElementById('status-mode'),
+      btnRandomizeEffects: document.getElementById('btn-randomize-effects'),
       statusFilename: document.getElementById('status-filename'),
       statusSize: document.getElementById('status-size'),
       statusCursor: document.getElementById('status-cursor'),
@@ -479,7 +387,12 @@
       layerList: document.getElementById('layer-list'),
       btnAddEffect: document.getElementById('btn-add-effect'),
       resizerEffects: document.getElementById('resizer-effects'),
-      main: document.getElementById('main')
+      main: document.getElementById('main'),
+      // Help dialog
+      btnHelp: document.getElementById('btn-help'),
+      helpDialog: document.getElementById('help-dialog'),
+      helpClose: document.getElementById('help-close'),
+      helpContent: document.querySelector('.help-content')
     };
 
     // ========== VIRTUAL SCROLLING ==========
@@ -770,16 +683,6 @@
       elements.statusValid.className = 'status-indicator ' + (state.isValid ? 'valid' : 'invalid');
       elements.statusValidText.textContent = state.isValid ? 'Valid' : 'Invalid';
 
-      // Show mode
-      if (state.buffer) {
-        const modeLabel = state.editMode === 'pixel' ? 'Pixel' : 'Raw';
-        const sizeInfo = state.editMode === 'pixel' && state.pixelData
-          ? ` (${state.pixelData.length} decompressed)`
-          : '';
-        elements.statusMode.textContent = modeLabel + sizeInfo;
-      } else {
-        elements.statusMode.textContent = '-';
-      }
     }
 
     // ========== FILE OPERATIONS ==========
@@ -827,22 +730,14 @@
       // Update UI
       elements.dropzone.classList.add('hidden');
       elements.btnSave.disabled = false;
-      elements.btnSaveRaw.disabled = false;
-      elements.modeToggle.disabled = false;
       elements.btnAddEffect.disabled = !state.pixelData;
-
-      updateModeToggle();
+      elements.btnRandomizeEffects.disabled = !state.pixelData;
       updateChunkList();
       refreshHexView();
       updatePreview();
       updateStatus();
       renderLayerList();
       renderEffectPicker();
-    }
-
-    function updateModeToggle() {
-      // Checkbox checked = Raw mode, unchecked = Pixel mode
-      elements.modeToggle.checked = state.editMode === 'raw';
     }
 
     function saveFile(fixCrc = true) {
@@ -1054,1450 +949,6 @@
       afterEdit();
     }
 
-    // ========== EFFECT DEFINITIONS ==========
-
-    // Filter Byte Effect
-    registerEffect({
-      id: 'filter-byte',
-      name: 'Filter Byte',
-      category: 'filter',
-      icon: '⬓',
-      parameters: [
-        { id: 'filterType', type: 'dropdown', label: 'Type', default: 1,
-          options: [
-            { value: 0, label: 'None' },
-            { value: 1, label: 'Sub (→)' },
-            { value: 2, label: 'Up (↓)' },
-            { value: 3, label: 'Average' },
-            { value: 4, label: 'Paeth' }
-          ]
-        },
-        { id: 'probability', type: 'slider', label: 'Amount', default: 15, min: 1, max: 100, unit: '%' }
-      ],
-      apply: (pixelData, imageInfo, params, seed) => {
-        const result = new Uint8Array(pixelData);
-        const rng = createSeededRNG(seed);
-        const { height, scanlineLength } = imageInfo;
-        const prob = params.probability / 100;
-
-        for (let y = 0; y < height; y++) {
-          if (rng() < prob) {
-            result[y * scanlineLength] = params.filterType;
-          }
-        }
-        return result;
-      }
-    });
-
-    // Channel Shift Effect (logarithmic scaling for subtle control)
-    registerEffect({
-      id: 'channel-shift',
-      name: 'Channel Shift',
-      category: 'channel',
-      icon: '↔',
-      parameters: [
-        { id: 'redShift', type: 'slider', label: 'Red', default: 5, min: -50, max: 50, unit: '' },
-        { id: 'greenShift', type: 'slider', label: 'Green', default: 0, min: -50, max: 50, unit: '' },
-        { id: 'blueShift', type: 'slider', label: 'Blue', default: -5, min: -50, max: 50, unit: '' }
-      ],
-      apply: (pixelData, imageInfo, params, seed) => {
-        const { width, height, bytesPerPixel, scanlineLength } = imageInfo;
-        if (bytesPerPixel < 3) return pixelData;
-
-        const result = new Uint8Array(pixelData);
-        // Log scale: slider ±50 maps to ±30px actual shift
-        const rShift = Math.round(logScaleBidirectional(params.redShift, 50, 30));
-        const gShift = Math.round(logScaleBidirectional(params.greenShift, 50, 30));
-        const bShift = Math.round(logScaleBidirectional(params.blueShift, 50, 30));
-
-        for (let y = 0; y < height; y++) {
-          const rowStart = y * scanlineLength + 1;
-          for (let x = 0; x < width; x++) {
-            const pixelOffset = rowStart + x * bytesPerPixel;
-            const rSrcX = ((x + rShift) % width + width) % width;
-            const gSrcX = ((x + gShift) % width + width) % width;
-            const bSrcX = ((x + bShift) % width + width) % width;
-
-            result[pixelOffset] = pixelData[rowStart + rSrcX * bytesPerPixel];
-            result[pixelOffset + 1] = pixelData[rowStart + gSrcX * bytesPerPixel + 1];
-            result[pixelOffset + 2] = pixelData[rowStart + bSrcX * bytesPerPixel + 2];
-          }
-        }
-        return result;
-      }
-    });
-
-    // Scanline Corrupt Effect (logarithmic scaling)
-    registerEffect({
-      id: 'scanline-corrupt',
-      name: 'Scanline Corrupt',
-      category: 'distortion',
-      icon: '≡',
-      parameters: [
-        { id: 'interval', type: 'slider', label: 'Interval', default: 30, min: 5, max: 100, unit: 'px' },
-        { id: 'intensity', type: 'slider', label: 'Intensity', default: 20, min: 1, max: 100, unit: '' },
-        { id: 'shift', type: 'slider', label: 'Shift', default: 20, min: 1, max: 100, unit: '' }
-      ],
-      apply: (pixelData, imageInfo, params, seed) => {
-        const result = new Uint8Array(pixelData);
-        const rng = createSeededRNG(seed);
-        const { height, scanlineLength } = imageInfo;
-        const { interval } = params;
-        // Log scale: slider maps to actual percentage/amount
-        const actualIntensity = logScale(params.intensity, 100, 30); // max 30% of scanline
-        const actualShift = logScale(params.shift, 100, 80); // max ±80 byte shift
-
-        for (let y = 0; y < height; y += interval) {
-          const rowStart = y * scanlineLength + 1;
-          const corruptCount = Math.floor((scanlineLength - 1) * (actualIntensity / 100));
-
-          for (let i = 0; i < corruptCount; i++) {
-            const offset = rowStart + Math.floor(rng() * (scanlineLength - 1));
-            const delta = Math.floor(rng() * actualShift * 2) - actualShift;
-            result[offset] = Math.max(0, Math.min(255, result[offset] + delta));
-          }
-        }
-        return result;
-      }
-    });
-
-    // Pixel Sort Effect
-    registerEffect({
-      id: 'pixel-sort',
-      name: 'Pixel Sort',
-      category: 'sorting',
-      icon: '▤',
-      parameters: [
-        { id: 'threshold', type: 'slider', label: 'Threshold', default: 140, min: 0, max: 255, unit: '' },
-        { id: 'rowSkip', type: 'slider', label: 'Row Skip', default: 4, min: 1, max: 20, unit: '' },
-        { id: 'maxLength', type: 'slider', label: 'Max Length', default: 50, min: 10, max: 500, unit: 'px' }
-      ],
-      apply: (pixelData, imageInfo, params, seed) => {
-        const { width, height, bytesPerPixel, scanlineLength } = imageInfo;
-        if (bytesPerPixel < 3) return pixelData;
-
-        const result = new Uint8Array(pixelData);
-        const { threshold, rowSkip, maxLength } = params;
-
-        for (let y = 0; y < height; y += rowSkip) {
-          const rowStart = y * scanlineLength + 1;
-          const pixels = [];
-
-          for (let x = 0; x < width; x++) {
-            const offset = rowStart + x * bytesPerPixel;
-            const r = pixelData[offset], g = pixelData[offset + 1], b = pixelData[offset + 2];
-            pixels.push({ x, r, g, b, brightness: (r + g + b) / 3,
-              a: bytesPerPixel > 3 ? pixelData[offset + 3] : 255 });
-          }
-
-          let intervalStart = -1;
-          for (let x = 0; x <= width; x++) {
-            const bright = x < width ? pixels[x].brightness > threshold : false;
-            if (bright && intervalStart === -1) {
-              intervalStart = x;
-            } else if (!bright && intervalStart !== -1) {
-              const len = Math.min(x - intervalStart, maxLength);
-              const interval = pixels.slice(intervalStart, intervalStart + len);
-              interval.sort((a, b) => a.brightness - b.brightness);
-
-              for (let i = 0; i < interval.length; i++) {
-                const destOffset = rowStart + (intervalStart + i) * bytesPerPixel;
-                result[destOffset] = interval[i].r;
-                result[destOffset + 1] = interval[i].g;
-                result[destOffset + 2] = interval[i].b;
-                if (bytesPerPixel > 3) result[destOffset + 3] = interval[i].a;
-              }
-              intervalStart = -1;
-            }
-          }
-        }
-        return result;
-      }
-    });
-
-    // Displacement Effect (logarithmic scale for fine control at low values)
-    registerEffect({
-      id: 'displacement',
-      name: 'Displacement',
-      category: 'distortion',
-      icon: '〰',
-      parameters: [
-        { id: 'amount', type: 'slider', label: 'Amount', default: 20, min: 1, max: 100, unit: '' },
-        { id: 'direction', type: 'dropdown', label: 'Direction', default: 'horizontal',
-          options: [
-            { value: 'horizontal', label: 'Horizontal' },
-            { value: 'vertical', label: 'Vertical' },
-            { value: 'both', label: 'Both' }
-          ]
-        }
-      ],
-      apply: (pixelData, imageInfo, params, seed) => {
-        const { width, height, bytesPerPixel, scanlineLength } = imageInfo;
-        const result = new Uint8Array(pixelData);
-        const { direction } = params;
-        // Logarithmic scale: slider 1-100 maps to ~0.1-30px
-        const logAmount = Math.pow(params.amount / 100, 2) * 30;
-
-        for (let y = 0; y < height; y++) {
-          const rowStart = y * scanlineLength + 1;
-          for (let x = 0; x < width; x++) {
-            const srcOffset = rowStart + x * bytesPerPixel;
-            const brightness = (pixelData[srcOffset] + pixelData[srcOffset + 1] + pixelData[srcOffset + 2]) / 3;
-            const displacement = Math.floor((brightness / 255) * logAmount);
-
-            let srcX = x, srcY = y;
-            if (direction === 'horizontal' || direction === 'both') {
-              srcX = ((x - displacement) % width + width) % width;
-            }
-            if (direction === 'vertical' || direction === 'both') {
-              srcY = ((y - displacement) % height + height) % height;
-            }
-
-            const srcPixelOffset = srcY * scanlineLength + 1 + srcX * bytesPerPixel;
-            for (let c = 0; c < bytesPerPixel; c++) {
-              result[srcOffset + c] = pixelData[srcPixelOffset + c];
-            }
-          }
-        }
-        return result;
-      }
-    });
-
-    // Block Glitch Effect (logarithmic scaling)
-    registerEffect({
-      id: 'block-glitch',
-      name: 'Block Glitch',
-      category: 'distortion',
-      icon: '▦',
-      parameters: [
-        { id: 'blockSize', type: 'slider', label: 'Block Size', default: 32, min: 8, max: 128, unit: 'px' },
-        { id: 'probability', type: 'slider', label: 'Probability', default: 15, min: 1, max: 100, unit: '' },
-        { id: 'maxShift', type: 'slider', label: 'Max Shift', default: 20, min: 1, max: 100, unit: '' }
-      ],
-      apply: (pixelData, imageInfo, params, seed) => {
-        const { width, height, bytesPerPixel, scanlineLength } = imageInfo;
-        const result = new Uint8Array(pixelData);
-        const rng = createSeededRNG(seed);
-        const { blockSize } = params;
-        // Log scale for probability and shift
-        const actualProb = logScale(params.probability, 100, 40); // max 40%
-        const actualShift = logScale(params.maxShift, 100, 150); // max 150px
-
-        const blocksX = Math.ceil(width / blockSize);
-        const blocksY = Math.ceil(height / blockSize);
-
-        for (let by = 0; by < blocksY; by++) {
-          for (let bx = 0; bx < blocksX; bx++) {
-            if (rng() * 100 > actualProb) continue;
-
-            const shiftX = Math.floor(rng() * actualShift * 2) - actualShift;
-            const startX = bx * blockSize;
-            const startY = by * blockSize;
-            const endX = Math.min(startX + blockSize, width);
-            const endY = Math.min(startY + blockSize, height);
-
-            for (let y = startY; y < endY; y++) {
-              const rowStart = y * scanlineLength + 1;
-              for (let x = startX; x < endX; x++) {
-                const srcX = ((x + shiftX) % width + width) % width;
-                const destOffset = rowStart + x * bytesPerPixel;
-                const srcOffset = rowStart + srcX * bytesPerPixel;
-                for (let c = 0; c < bytesPerPixel; c++) {
-                  result[destOffset + c] = pixelData[srcOffset + c];
-                }
-              }
-            }
-          }
-        }
-        return result;
-      }
-    });
-
-    // Color Quantize Effect
-    registerEffect({
-      id: 'color-quantize',
-      name: 'Color Quantize',
-      category: 'color',
-      icon: '◧',
-      parameters: [
-        { id: 'levels', type: 'slider', label: 'Levels', default: 8, min: 2, max: 32, unit: '' },
-        { id: 'dither', type: 'checkbox', label: 'Dither', default: false }
-      ],
-      apply: (pixelData, imageInfo, params, seed) => {
-        const { width, height, bytesPerPixel, scanlineLength } = imageInfo;
-        const result = new Uint8Array(pixelData);
-        const rng = createSeededRNG(seed);
-        const { levels, dither } = params;
-        const step = 255 / (levels - 1);
-
-        for (let y = 0; y < height; y++) {
-          const rowStart = y * scanlineLength + 1;
-          for (let x = 0; x < width; x++) {
-            const offset = rowStart + x * bytesPerPixel;
-            for (let c = 0; c < Math.min(3, bytesPerPixel); c++) {
-              let val = pixelData[offset + c];
-              if (dither) val += (rng() - 0.5) * step;
-              result[offset + c] = Math.round(val / step) * step;
-            }
-          }
-        }
-        return result;
-      }
-    });
-
-    // Noise Injection Effect (logarithmic scaling)
-    registerEffect({
-      id: 'noise',
-      name: 'Noise',
-      category: 'color',
-      icon: '▒',
-      parameters: [
-        { id: 'amount', type: 'slider', label: 'Amount', default: 15, min: 1, max: 100, unit: '' },
-        { id: 'monochrome', type: 'checkbox', label: 'Mono', default: false }
-      ],
-      apply: (pixelData, imageInfo, params, seed) => {
-        const { width, height, bytesPerPixel, scanlineLength } = imageInfo;
-        const result = new Uint8Array(pixelData);
-        const rng = createSeededRNG(seed);
-        const { monochrome } = params;
-        // Log scale: slider 1-100 maps to 1-60 actual noise range
-        const actualAmount = logScale(params.amount, 100, 60);
-
-        for (let y = 0; y < height; y++) {
-          const rowStart = y * scanlineLength + 1;
-          for (let x = 0; x < width; x++) {
-            const offset = rowStart + x * bytesPerPixel;
-            if (monochrome) {
-              const noise = (rng() - 0.5) * actualAmount * 2;
-              for (let c = 0; c < Math.min(3, bytesPerPixel); c++) {
-                result[offset + c] = Math.max(0, Math.min(255, pixelData[offset + c] + noise));
-              }
-            } else {
-              for (let c = 0; c < Math.min(3, bytesPerPixel); c++) {
-                const noise = (rng() - 0.5) * actualAmount * 2;
-                result[offset + c] = Math.max(0, Math.min(255, pixelData[offset + c] + noise));
-              }
-            }
-          }
-        }
-        return result;
-      }
-    });
-
-    // ========== PROBABILITY-BASED EFFECTS ==========
-
-    // Bit Flip Effect - randomly flip bits in pixel values
-    registerEffect({
-      id: 'bit-flip',
-      name: 'Bit Flip',
-      category: 'distortion',
-      icon: '⊕',
-      parameters: [
-        { id: 'probability', type: 'slider', label: 'Probability', default: 1, min: 0.1, max: 10, step: 0.1, unit: '%' },
-        { id: 'bits', type: 'slider', label: 'Bits', default: 2, min: 1, max: 8, unit: '' }
-      ],
-      apply: (pixelData, imageInfo, params, seed) => {
-        const { width, height, bytesPerPixel, scanlineLength } = imageInfo;
-        const result = new Uint8Array(pixelData);
-        const rng = createSeededRNG(seed);
-        const { probability, bits } = params;
-        const prob = probability / 100;
-
-        for (let y = 0; y < height; y++) {
-          const rowStart = y * scanlineLength + 1;
-          for (let x = 0; x < width; x++) {
-            const offset = rowStart + x * bytesPerPixel;
-            for (let c = 0; c < Math.min(3, bytesPerPixel); c++) {
-              if (rng() < prob) {
-                // Flip random bits
-                let mask = 0;
-                for (let b = 0; b < bits; b++) {
-                  mask |= (1 << Math.floor(rng() * 8));
-                }
-                result[offset + c] = pixelData[offset + c] ^ mask;
-              }
-            }
-          }
-        }
-        return result;
-      }
-    });
-
-    // Pixel Dropout Effect - randomly drop pixels
-    registerEffect({
-      id: 'pixel-dropout',
-      name: 'Pixel Dropout',
-      category: 'distortion',
-      icon: '◌',
-      parameters: [
-        { id: 'probability', type: 'slider', label: 'Probability', default: 2, min: 0.1, max: 20, step: 0.1, unit: '%' },
-        { id: 'mode', type: 'dropdown', label: 'Mode', default: 'black',
-          options: [
-            { value: 'black', label: 'Black' },
-            { value: 'white', label: 'White' },
-            { value: 'random', label: 'Random' },
-            { value: 'invert', label: 'Invert' }
-          ]
-        }
-      ],
-      apply: (pixelData, imageInfo, params, seed) => {
-        const { width, height, bytesPerPixel, scanlineLength } = imageInfo;
-        const result = new Uint8Array(pixelData);
-        const rng = createSeededRNG(seed);
-        const { probability, mode } = params;
-        const prob = probability / 100;
-
-        for (let y = 0; y < height; y++) {
-          const rowStart = y * scanlineLength + 1;
-          for (let x = 0; x < width; x++) {
-            if (rng() < prob) {
-              const offset = rowStart + x * bytesPerPixel;
-              for (let c = 0; c < Math.min(3, bytesPerPixel); c++) {
-                if (mode === 'black') result[offset + c] = 0;
-                else if (mode === 'white') result[offset + c] = 255;
-                else if (mode === 'random') result[offset + c] = Math.floor(rng() * 256);
-                else if (mode === 'invert') result[offset + c] = 255 - pixelData[offset + c];
-              }
-            }
-          }
-        }
-        return result;
-      }
-    });
-
-    // Channel Swap Effect - randomly swap RGB channels
-    registerEffect({
-      id: 'channel-swap',
-      name: 'Channel Swap',
-      category: 'channel',
-      icon: '⇄',
-      parameters: [
-        { id: 'probability', type: 'slider', label: 'Probability', default: 5, min: 0.5, max: 50, step: 0.5, unit: '%' },
-        { id: 'swapType', type: 'dropdown', label: 'Swap', default: 'random',
-          options: [
-            { value: 'random', label: 'Random' },
-            { value: 'rgb-bgr', label: 'R↔B' },
-            { value: 'rgb-grb', label: 'R↔G' },
-            { value: 'rgb-rbg', label: 'G↔B' }
-          ]
-        }
-      ],
-      apply: (pixelData, imageInfo, params, seed) => {
-        const { width, height, bytesPerPixel, scanlineLength } = imageInfo;
-        if (bytesPerPixel < 3) return pixelData;
-        const result = new Uint8Array(pixelData);
-        const rng = createSeededRNG(seed);
-        const { probability, swapType } = params;
-        const prob = probability / 100;
-
-        for (let y = 0; y < height; y++) {
-          const rowStart = y * scanlineLength + 1;
-          for (let x = 0; x < width; x++) {
-            if (rng() < prob) {
-              const offset = rowStart + x * bytesPerPixel;
-              const r = pixelData[offset], g = pixelData[offset + 1], b = pixelData[offset + 2];
-
-              let swap = swapType;
-              if (swap === 'random') {
-                const swaps = ['rgb-bgr', 'rgb-grb', 'rgb-rbg'];
-                swap = swaps[Math.floor(rng() * 3)];
-              }
-
-              if (swap === 'rgb-bgr') { result[offset] = b; result[offset + 2] = r; }
-              else if (swap === 'rgb-grb') { result[offset] = g; result[offset + 1] = r; }
-              else if (swap === 'rgb-rbg') { result[offset + 1] = b; result[offset + 2] = g; }
-            }
-          }
-        }
-        return result;
-      }
-    });
-
-    // Data Mosh Effect - copy random blocks from elsewhere (logarithmic scaling)
-    registerEffect({
-      id: 'data-mosh',
-      name: 'Data Mosh',
-      category: 'distortion',
-      icon: '▧',
-      parameters: [
-        { id: 'probability', type: 'slider', label: 'Probability', default: 15, min: 1, max: 100, unit: '' },
-        { id: 'blockSize', type: 'slider', label: 'Block Size', default: 16, min: 4, max: 64, unit: 'px' },
-        { id: 'maxDistance', type: 'slider', label: 'Distance', default: 20, min: 1, max: 100, unit: '' }
-      ],
-      apply: (pixelData, imageInfo, params, seed) => {
-        const { width, height, bytesPerPixel, scanlineLength } = imageInfo;
-        const result = new Uint8Array(pixelData);
-        const rng = createSeededRNG(seed);
-        const { blockSize } = params;
-        // Log scale for probability and distance
-        const prob = logScale(params.probability, 100, 25) / 100; // max 25%
-        const actualDistance = logScale(params.maxDistance, 100, 300); // max 300px
-
-        const blocksX = Math.ceil(width / blockSize);
-        const blocksY = Math.ceil(height / blockSize);
-
-        for (let by = 0; by < blocksY; by++) {
-          for (let bx = 0; bx < blocksX; bx++) {
-            if (rng() >= prob) continue;
-
-            // Source block position (random offset from current)
-            const offsetX = Math.floor(rng() * actualDistance * 2) - actualDistance;
-            const offsetY = Math.floor(rng() * actualDistance * 2) - actualDistance;
-
-            const startX = bx * blockSize;
-            const startY = by * blockSize;
-            const endX = Math.min(startX + blockSize, width);
-            const endY = Math.min(startY + blockSize, height);
-
-            for (let y = startY; y < endY; y++) {
-              for (let x = startX; x < endX; x++) {
-                const srcX = ((x + offsetX) % width + width) % width;
-                const srcY = ((y + offsetY) % height + height) % height;
-
-                const destOffset = y * scanlineLength + 1 + x * bytesPerPixel;
-                const srcOffset = srcY * scanlineLength + 1 + srcX * bytesPerPixel;
-
-                for (let c = 0; c < bytesPerPixel; c++) {
-                  result[destOffset + c] = pixelData[srcOffset + c];
-                }
-              }
-            }
-          }
-        }
-        return result;
-      }
-    });
-
-    // Glitch Lines Effect - random horizontal line shifts (logarithmic scaling)
-    registerEffect({
-      id: 'glitch-lines',
-      name: 'Glitch Lines',
-      category: 'distortion',
-      icon: '═',
-      parameters: [
-        { id: 'probability', type: 'slider', label: 'Probability', default: 15, min: 1, max: 100, unit: '' },
-        { id: 'maxShift', type: 'slider', label: 'Max Shift', default: 15, min: 1, max: 100, unit: '' },
-        { id: 'thickness', type: 'slider', label: 'Thickness', default: 3, min: 1, max: 20, unit: 'px' }
-      ],
-      apply: (pixelData, imageInfo, params, seed) => {
-        const { width, height, bytesPerPixel, scanlineLength } = imageInfo;
-        const result = new Uint8Array(pixelData);
-        const rng = createSeededRNG(seed);
-        const { thickness } = params;
-        // Log scale for probability and shift
-        const prob = logScale(params.probability, 100, 20) / 100; // max 20%
-        const actualShift = logScale(params.maxShift, 100, 150); // max 150px
-
-        for (let y = 0; y < height; y++) {
-          if (rng() < prob) {
-            const shift = Math.floor(rng() * actualShift * 2) - actualShift;
-            const lineThickness = Math.min(thickness, height - y);
-
-            for (let dy = 0; dy < lineThickness; dy++) {
-              const rowStart = (y + dy) * scanlineLength + 1;
-              for (let x = 0; x < width; x++) {
-                const srcX = ((x + shift) % width + width) % width;
-                const destOffset = rowStart + x * bytesPerPixel;
-                const srcOffset = rowStart + srcX * bytesPerPixel;
-
-                for (let c = 0; c < bytesPerPixel; c++) {
-                  result[destOffset + c] = pixelData[srcOffset + c];
-                }
-              }
-            }
-            y += lineThickness - 1; // Skip processed lines
-          }
-        }
-        return result;
-      }
-    });
-
-    // Sparkle Effect - random bright/dark pixels (salt & pepper)
-    registerEffect({
-      id: 'sparkle',
-      name: 'Sparkle',
-      category: 'color',
-      icon: '✦',
-      parameters: [
-        { id: 'probability', type: 'slider', label: 'Probability', default: 1, min: 0.1, max: 10, step: 0.1, unit: '%' },
-        { id: 'brightness', type: 'slider', label: 'Brightness', default: 50, min: 0, max: 100, unit: '%' },
-        { id: 'colorful', type: 'checkbox', label: 'Colorful', default: false }
-      ],
-      apply: (pixelData, imageInfo, params, seed) => {
-        const { width, height, bytesPerPixel, scanlineLength } = imageInfo;
-        const result = new Uint8Array(pixelData);
-        const rng = createSeededRNG(seed);
-        const { probability, brightness, colorful } = params;
-        const prob = probability / 100;
-        const brightProb = brightness / 100;
-
-        for (let y = 0; y < height; y++) {
-          const rowStart = y * scanlineLength + 1;
-          for (let x = 0; x < width; x++) {
-            if (rng() < prob) {
-              const offset = rowStart + x * bytesPerPixel;
-              const isBright = rng() < brightProb;
-
-              if (colorful) {
-                for (let c = 0; c < Math.min(3, bytesPerPixel); c++) {
-                  result[offset + c] = isBright ?
-                    Math.floor(200 + rng() * 55) :
-                    Math.floor(rng() * 55);
-                }
-              } else {
-                const val = isBright ? 255 : 0;
-                for (let c = 0; c < Math.min(3, bytesPerPixel); c++) {
-                  result[offset + c] = val;
-                }
-              }
-            }
-          }
-        }
-        return result;
-      }
-    });
-
-    // Chromatic Aberration Effect - edge-based RGB split (logarithmic scaling)
-    registerEffect({
-      id: 'chromatic-aberration',
-      name: 'Chromatic Aberr.',
-      category: 'channel',
-      icon: '◐',
-      parameters: [
-        { id: 'amount', type: 'slider', label: 'Amount', default: 10, min: 1, max: 100, unit: '' },
-        { id: 'angle', type: 'slider', label: 'Angle', default: 0, min: 0, max: 360, unit: '°' }
-      ],
-      apply: (pixelData, imageInfo, params, seed) => {
-        const { width, height, bytesPerPixel, scanlineLength } = imageInfo;
-        if (bytesPerPixel < 3) return pixelData;
-        const result = new Uint8Array(pixelData);
-        const { angle } = params;
-        // Log scale: slider 1-100 maps to 0.5-20px actual offset
-        const actualAmount = logScale(params.amount, 100, 20);
-
-        const rad = angle * Math.PI / 180;
-        const rOffsetX = Math.round(Math.cos(rad) * actualAmount);
-        const rOffsetY = Math.round(Math.sin(rad) * actualAmount);
-        const bOffsetX = Math.round(Math.cos(rad + Math.PI) * actualAmount);
-        const bOffsetY = Math.round(Math.sin(rad + Math.PI) * actualAmount);
-
-        for (let y = 0; y < height; y++) {
-          const rowStart = y * scanlineLength + 1;
-          for (let x = 0; x < width; x++) {
-            const offset = rowStart + x * bytesPerPixel;
-
-            // Red channel offset
-            const rSrcX = ((x + rOffsetX) % width + width) % width;
-            const rSrcY = ((y + rOffsetY) % height + height) % height;
-            const rSrcOffset = rSrcY * scanlineLength + 1 + rSrcX * bytesPerPixel;
-
-            // Blue channel offset (opposite direction)
-            const bSrcX = ((x + bOffsetX) % width + width) % width;
-            const bSrcY = ((y + bOffsetY) % height + height) % height;
-            const bSrcOffset = bSrcY * scanlineLength + 1 + bSrcX * bytesPerPixel;
-
-            result[offset] = pixelData[rSrcOffset];     // R
-            result[offset + 1] = pixelData[offset + 1]; // G stays
-            result[offset + 2] = pixelData[bSrcOffset + 2]; // B
-          }
-        }
-        return result;
-      }
-    });
-
-    // ========== ADVANCED CREATIVE EFFECTS ==========
-
-    // Warp Field - Perlin/Simplex noise displacement
-    registerEffect({
-      id: 'warp-field',
-      name: 'Warp Field',
-      category: 'distortion',
-      icon: '◎',
-      parameters: [
-        { id: 'amount', type: 'slider', label: 'Amount', default: 20, min: 1, max: 100, unit: '' },
-        { id: 'scale', type: 'slider', label: 'Scale', default: 30, min: 5, max: 100, unit: '' },
-        { id: 'octaves', type: 'slider', label: 'Detail', default: 3, min: 1, max: 6, unit: '' }
-      ],
-      apply: (pixelData, imageInfo, params, seed) => {
-        const { width, height, bytesPerPixel, scanlineLength } = imageInfo;
-        const result = new Uint8Array(pixelData);
-        simplexNoise.seed(seed);
-        const amount = logScale(params.amount, 100, 50);
-        const scale = logScale(params.scale, 100, 0.02);
-
-        for (let y = 0; y < height; y++) {
-          for (let x = 0; x < width; x++) {
-            const nx = simplexNoise.fbm(x * scale, y * scale, params.octaves);
-            const ny = simplexNoise.fbm(x * scale + 100, y * scale + 100, params.octaves);
-            const srcX = Math.floor(((x + nx * amount) % width + width) % width);
-            const srcY = Math.floor(((y + ny * amount) % height + height) % height);
-            const destOffset = y * scanlineLength + 1 + x * bytesPerPixel;
-            const srcOffset = srcY * scanlineLength + 1 + srcX * bytesPerPixel;
-            for (let c = 0; c < bytesPerPixel; c++) {
-              result[destOffset + c] = pixelData[srcOffset + c];
-            }
-          }
-        }
-        return result;
-      }
-    });
-
-    // Halftone - Bayer matrix ordered dithering
-    registerEffect({
-      id: 'halftone',
-      name: 'Halftone',
-      category: 'color',
-      icon: '▣',
-      parameters: [
-        { id: 'levels', type: 'slider', label: 'Levels', default: 4, min: 2, max: 16, unit: '' },
-        { id: 'matrixSize', type: 'dropdown', label: 'Pattern', default: 4,
-          options: [
-            { value: 2, label: '2×2' },
-            { value: 4, label: '4×4' },
-            { value: 8, label: '8×8' }
-          ]
-        },
-        { id: 'colorMode', type: 'dropdown', label: 'Color', default: 'rgb',
-          options: [
-            { value: 'mono', label: 'Mono' },
-            { value: 'rgb', label: 'RGB' }
-          ]
-        }
-      ],
-      apply: (pixelData, imageInfo, params, seed) => {
-        const { width, height, bytesPerPixel, scanlineLength } = imageInfo;
-        const result = new Uint8Array(pixelData);
-        const { levels, matrixSize, colorMode } = params;
-
-        // Bayer matrices
-        const bayer2 = [[0,2],[3,1]];
-        const bayer4 = [[0,8,2,10],[12,4,14,6],[3,11,1,9],[15,7,13,5]];
-        const bayer8 = [];
-        for (let i = 0; i < 8; i++) {
-          bayer8[i] = [];
-          for (let j = 0; j < 8; j++) {
-            const x = (i & 4) >> 2 | (j & 4) >> 1 | (i & 2) | (j & 2) << 1 | (i & 1) << 2 | (j & 1) << 3;
-            bayer8[i][j] = x;
-          }
-        }
-        const matrices = { 2: bayer2, 4: bayer4, 8: bayer8 };
-        const matrix = matrices[matrixSize];
-        const matrixMax = matrixSize * matrixSize;
-
-        for (let y = 0; y < height; y++) {
-          const rowStart = y * scanlineLength + 1;
-          for (let x = 0; x < width; x++) {
-            const offset = rowStart + x * bytesPerPixel;
-            const threshold = (matrix[y % matrixSize][x % matrixSize] / matrixMax) * 255;
-
-            for (let c = 0; c < Math.min(3, bytesPerPixel); c++) {
-              const val = pixelData[offset + c];
-              if (colorMode === 'mono' && c > 0) {
-                result[offset + c] = result[offset]; // Copy from first channel
-              } else {
-                const step = 255 / (levels - 1);
-                const adjusted = val + (threshold - 128) * (step / 255);
-                result[offset + c] = Math.round(Math.max(0, Math.min(255, adjusted)) / step) * step;
-              }
-            }
-          }
-        }
-        return result;
-      }
-    });
-
-    // Wave Pool - Multiple interference patterns
-    registerEffect({
-      id: 'wave-pool',
-      name: 'Wave Pool',
-      category: 'distortion',
-      icon: '◠',
-      parameters: [
-        { id: 'waves', type: 'slider', label: 'Waves', default: 3, min: 1, max: 8, unit: '' },
-        { id: 'amplitude', type: 'slider', label: 'Amplitude', default: 20, min: 1, max: 100, unit: '' },
-        { id: 'frequency', type: 'slider', label: 'Frequency', default: 30, min: 5, max: 100, unit: '' }
-      ],
-      apply: (pixelData, imageInfo, params, seed) => {
-        const { width, height, bytesPerPixel, scanlineLength } = imageInfo;
-        const result = new Uint8Array(pixelData);
-        const rng = createSeededRNG(seed);
-        const amplitude = logScale(params.amplitude, 100, 40);
-        const freq = logScale(params.frequency, 100, 0.1);
-
-        // Generate wave centers
-        const centers = [];
-        for (let i = 0; i < params.waves; i++) {
-          centers.push({ x: rng() * width, y: rng() * height, phase: rng() * Math.PI * 2 });
-        }
-
-        for (let y = 0; y < height; y++) {
-          for (let x = 0; x < width; x++) {
-            let totalDisp = 0;
-            for (const c of centers) {
-              const dist = Math.sqrt((x - c.x) ** 2 + (y - c.y) ** 2);
-              totalDisp += Math.sin(dist * freq + c.phase);
-            }
-            totalDisp = (totalDisp / params.waves) * amplitude;
-
-            const srcX = Math.floor(((x + totalDisp) % width + width) % width);
-            const srcY = Math.floor(((y + totalDisp * 0.5) % height + height) % height);
-            const destOffset = y * scanlineLength + 1 + x * bytesPerPixel;
-            const srcOffset = srcY * scanlineLength + 1 + srcX * bytesPerPixel;
-            for (let c = 0; c < bytesPerPixel; c++) {
-              result[destOffset + c] = pixelData[srcOffset + c];
-            }
-          }
-        }
-        return result;
-      }
-    });
-
-    // Neighbor Drift - Sequential pixel influence
-    registerEffect({
-      id: 'neighbor-drift',
-      name: 'Neighbor Drift',
-      category: 'color',
-      icon: '→',
-      parameters: [
-        { id: 'memory', type: 'slider', label: 'Memory', default: 5, min: 2, max: 20, unit: 'px' },
-        { id: 'blend', type: 'slider', label: 'Blend', default: 30, min: 1, max: 100, unit: '' },
-        { id: 'direction', type: 'dropdown', label: 'Direction', default: 'horizontal',
-          options: [
-            { value: 'horizontal', label: 'Horizontal' },
-            { value: 'vertical', label: 'Vertical' },
-            { value: 'diagonal', label: 'Diagonal' }
-          ]
-        }
-      ],
-      apply: (pixelData, imageInfo, params, seed) => {
-        const { width, height, bytesPerPixel, scanlineLength } = imageInfo;
-        const result = new Uint8Array(pixelData);
-        simplexNoise.seed(seed);
-        const blend = logScale(params.blend, 100, 0.8);
-        const memory = params.memory;
-
-        if (params.direction === 'horizontal' || params.direction === 'diagonal') {
-          for (let y = 0; y < height; y++) {
-            const rowStart = y * scanlineLength + 1;
-            const history = [];
-            for (let x = 0; x < width; x++) {
-              const offset = rowStart + x * bytesPerPixel;
-              const noise = (simplexNoise.noise2D(x * 0.05, y * 0.05) + 1) * 0.5;
-
-              if (history.length >= memory) history.shift();
-              const current = [];
-              for (let c = 0; c < Math.min(3, bytesPerPixel); c++) {
-                current.push(pixelData[offset + c]);
-              }
-              history.push(current);
-
-              if (history.length > 1) {
-                const avg = [0, 0, 0];
-                for (const h of history) {
-                  for (let c = 0; c < 3; c++) avg[c] += h[c] || 0;
-                }
-                for (let c = 0; c < Math.min(3, bytesPerPixel); c++) {
-                  const avgVal = avg[c] / history.length;
-                  result[offset + c] = Math.round(pixelData[offset + c] * (1 - blend * noise) + avgVal * blend * noise);
-                }
-              }
-            }
-          }
-        }
-        if (params.direction === 'vertical' || params.direction === 'diagonal') {
-          for (let x = 0; x < width; x++) {
-            const history = [];
-            for (let y = 0; y < height; y++) {
-              const offset = y * scanlineLength + 1 + x * bytesPerPixel;
-              const noise = (simplexNoise.noise2D(x * 0.05, y * 0.05) + 1) * 0.5;
-
-              if (history.length >= memory) history.shift();
-              const current = [];
-              for (let c = 0; c < Math.min(3, bytesPerPixel); c++) {
-                current.push(result[offset + c]);
-              }
-              history.push(current);
-
-              if (history.length > 1) {
-                const avg = [0, 0, 0];
-                for (const h of history) {
-                  for (let c = 0; c < 3; c++) avg[c] += h[c] || 0;
-                }
-                for (let c = 0; c < Math.min(3, bytesPerPixel); c++) {
-                  const avgVal = avg[c] / history.length;
-                  result[offset + c] = Math.round(result[offset + c] * (1 - blend * noise) + avgVal * blend * noise);
-                }
-              }
-            }
-          }
-        }
-        return result;
-      }
-    });
-
-    // Turing Grow - Reaction-diffusion patterns
-    registerEffect({
-      id: 'turing-grow',
-      name: 'Turing Grow',
-      category: 'generative',
-      icon: '❂',
-      parameters: [
-        { id: 'iterations', type: 'slider', label: 'Growth', default: 10, min: 1, max: 50, unit: '' },
-        { id: 'feed', type: 'slider', label: 'Feed', default: 55, min: 1, max: 100, unit: '' },
-        { id: 'kill', type: 'slider', label: 'Kill', default: 62, min: 1, max: 100, unit: '' },
-        { id: 'blend', type: 'slider', label: 'Blend', default: 50, min: 1, max: 100, unit: '' }
-      ],
-      apply: (pixelData, imageInfo, params, seed) => {
-        const { width, height, bytesPerPixel, scanlineLength } = imageInfo;
-        const result = new Uint8Array(pixelData);
-        const rng = createSeededRNG(seed);
-
-        // Gray-Scott parameters (scaled from sliders)
-        const dA = 1.0, dB = 0.5;
-        const f = 0.01 + (params.feed / 100) * 0.08; // 0.01 - 0.09
-        const k = 0.03 + (params.kill / 100) * 0.04; // 0.03 - 0.07
-        const blend = params.blend / 100;
-
-        // Initialize grids from image brightness
-        let gridA = new Float32Array(width * height);
-        let gridB = new Float32Array(width * height);
-
-        for (let y = 0; y < height; y++) {
-          for (let x = 0; x < width; x++) {
-            const offset = y * scanlineLength + 1 + x * bytesPerPixel;
-            const brightness = (pixelData[offset] + pixelData[offset + 1] + pixelData[offset + 2]) / (3 * 255);
-            gridA[y * width + x] = 1;
-            gridB[y * width + x] = brightness > 0.5 ? rng() * 0.5 : 0;
-          }
-        }
-
-        // Run iterations
-        for (let iter = 0; iter < params.iterations; iter++) {
-          const newA = new Float32Array(width * height);
-          const newB = new Float32Array(width * height);
-
-          for (let y = 1; y < height - 1; y++) {
-            for (let x = 1; x < width - 1; x++) {
-              const idx = y * width + x;
-              const a = gridA[idx], b = gridB[idx];
-
-              // Laplacian (simplified 3x3)
-              const lapA = gridA[idx-1] + gridA[idx+1] + gridA[idx-width] + gridA[idx+width] - 4*a;
-              const lapB = gridB[idx-1] + gridB[idx+1] + gridB[idx-width] + gridB[idx+width] - 4*b;
-
-              const abb = a * b * b;
-              newA[idx] = Math.max(0, Math.min(1, a + dA * lapA * 0.2 - abb + f * (1 - a)));
-              newB[idx] = Math.max(0, Math.min(1, b + dB * lapB * 0.2 + abb - (k + f) * b));
-            }
-          }
-          gridA = newA;
-          gridB = newB;
-        }
-
-        // Blend result with original
-        for (let y = 0; y < height; y++) {
-          for (let x = 0; x < width; x++) {
-            const offset = y * scanlineLength + 1 + x * bytesPerPixel;
-            const pattern = gridB[y * width + x];
-            for (let c = 0; c < Math.min(3, bytesPerPixel); c++) {
-              const original = pixelData[offset + c];
-              const modified = original * (1 - pattern * 0.8);
-              result[offset + c] = Math.round(original * (1 - blend) + modified * blend);
-            }
-          }
-        }
-        return result;
-      }
-    });
-
-    // Life Cycle - Conway's Game of Life on image
-    registerEffect({
-      id: 'life-cycle',
-      name: 'Life Cycle',
-      category: 'generative',
-      icon: '⬡',
-      parameters: [
-        { id: 'generations', type: 'slider', label: 'Generations', default: 5, min: 1, max: 30, unit: '' },
-        { id: 'threshold', type: 'slider', label: 'Threshold', default: 50, min: 1, max: 100, unit: '' },
-        { id: 'blend', type: 'slider', label: 'Blend', default: 40, min: 1, max: 100, unit: '' }
-      ],
-      apply: (pixelData, imageInfo, params, seed) => {
-        const { width, height, bytesPerPixel, scanlineLength } = imageInfo;
-        const result = new Uint8Array(pixelData);
-        const threshold = (params.threshold / 100) * 255;
-        const blend = params.blend / 100;
-
-        // Initialize from brightness
-        let grid = new Uint8Array(width * height);
-        for (let y = 0; y < height; y++) {
-          for (let x = 0; x < width; x++) {
-            const offset = y * scanlineLength + 1 + x * bytesPerPixel;
-            const brightness = (pixelData[offset] + pixelData[offset + 1] + pixelData[offset + 2]) / 3;
-            grid[y * width + x] = brightness > threshold ? 1 : 0;
-          }
-        }
-
-        // Run generations
-        for (let gen = 0; gen < params.generations; gen++) {
-          const newGrid = new Uint8Array(width * height);
-          for (let y = 1; y < height - 1; y++) {
-            for (let x = 1; x < width - 1; x++) {
-              let neighbors = 0;
-              for (let dy = -1; dy <= 1; dy++) {
-                for (let dx = -1; dx <= 1; dx++) {
-                  if (dx === 0 && dy === 0) continue;
-                  neighbors += grid[(y + dy) * width + (x + dx)];
-                }
-              }
-              const alive = grid[y * width + x];
-              // Conway's rules
-              if (alive && (neighbors === 2 || neighbors === 3)) newGrid[y * width + x] = 1;
-              else if (!alive && neighbors === 3) newGrid[y * width + x] = 1;
-            }
-          }
-          grid = newGrid;
-        }
-
-        // Apply to image
-        for (let y = 0; y < height; y++) {
-          for (let x = 0; x < width; x++) {
-            const offset = y * scanlineLength + 1 + x * bytesPerPixel;
-            const cell = grid[y * width + x];
-            for (let c = 0; c < Math.min(3, bytesPerPixel); c++) {
-              const original = pixelData[offset + c];
-              const modified = cell ? Math.min(255, original * 1.3) : original * 0.5;
-              result[offset + c] = Math.round(original * (1 - blend) + modified * blend);
-            }
-          }
-        }
-        return result;
-      }
-    });
-
-    // Crystal - Voronoi mosaic effect
-    registerEffect({
-      id: 'crystal',
-      name: 'Crystal',
-      category: 'stylize',
-      icon: '◇',
-      parameters: [
-        { id: 'cells', type: 'slider', label: 'Cells', default: 30, min: 10, max: 200, unit: '' },
-        { id: 'edgeWidth', type: 'slider', label: 'Edge', default: 0, min: 0, max: 10, unit: 'px' },
-        { id: 'jitter', type: 'slider', label: 'Jitter', default: 50, min: 0, max: 100, unit: '' }
-      ],
-      apply: (pixelData, imageInfo, params, seed) => {
-        const { width, height, bytesPerPixel, scanlineLength } = imageInfo;
-        const result = new Uint8Array(pixelData);
-        const rng = createSeededRNG(seed);
-        const numCells = params.cells;
-        const jitter = params.jitter / 100;
-
-        // Generate cell centers with optional grid-based placement
-        const cells = [];
-        const gridSize = Math.ceil(Math.sqrt(numCells));
-        const cellW = width / gridSize, cellH = height / gridSize;
-
-        for (let gy = 0; gy < gridSize; gy++) {
-          for (let gx = 0; gx < gridSize; gx++) {
-            if (cells.length >= numCells) break;
-            const baseX = (gx + 0.5) * cellW;
-            const baseY = (gy + 0.5) * cellH;
-            cells.push({
-              x: baseX + (rng() - 0.5) * cellW * jitter,
-              y: baseY + (rng() - 0.5) * cellH * jitter,
-              color: [0, 0, 0],
-              count: 0
-            });
-          }
-        }
-
-        // Assign pixels to cells and accumulate colors
-        const assignments = new Uint16Array(width * height);
-        for (let y = 0; y < height; y++) {
-          for (let x = 0; x < width; x++) {
-            let minDist = Infinity, nearest = 0;
-            for (let i = 0; i < cells.length; i++) {
-              const dx = x - cells[i].x, dy = y - cells[i].y;
-              const dist = dx * dx + dy * dy;
-              if (dist < minDist) { minDist = dist; nearest = i; }
-            }
-            assignments[y * width + x] = nearest;
-            const offset = y * scanlineLength + 1 + x * bytesPerPixel;
-            for (let c = 0; c < 3; c++) {
-              cells[nearest].color[c] += pixelData[offset + c];
-            }
-            cells[nearest].count++;
-          }
-        }
-
-        // Average colors
-        for (const cell of cells) {
-          if (cell.count > 0) {
-            for (let c = 0; c < 3; c++) cell.color[c] = Math.round(cell.color[c] / cell.count);
-          }
-        }
-
-        // Apply colors with optional edge detection
-        for (let y = 0; y < height; y++) {
-          for (let x = 0; x < width; x++) {
-            const offset = y * scanlineLength + 1 + x * bytesPerPixel;
-            const cellIdx = assignments[y * width + x];
-
-            // Edge detection
-            let isEdge = false;
-            if (params.edgeWidth > 0 && x > 0 && x < width-1 && y > 0 && y < height-1) {
-              if (assignments[y * width + x - 1] !== cellIdx ||
-                  assignments[y * width + x + 1] !== cellIdx ||
-                  assignments[(y-1) * width + x] !== cellIdx ||
-                  assignments[(y+1) * width + x] !== cellIdx) {
-                isEdge = true;
-              }
-            }
-
-            for (let c = 0; c < Math.min(3, bytesPerPixel); c++) {
-              result[offset + c] = isEdge ? 30 : cells[cellIdx].color[c];
-            }
-          }
-        }
-        return result;
-      }
-    });
-
-    // Echo Decay - Recursive shrink/rotate feedback
-    registerEffect({
-      id: 'echo-decay',
-      name: 'Echo Decay',
-      category: 'distortion',
-      icon: '◌',
-      parameters: [
-        { id: 'echoes', type: 'slider', label: 'Echoes', default: 5, min: 2, max: 15, unit: '' },
-        { id: 'scale', type: 'slider', label: 'Scale', default: 85, min: 50, max: 99, unit: '%' },
-        { id: 'rotation', type: 'slider', label: 'Rotation', default: 10, min: -45, max: 45, unit: '°' },
-        { id: 'decay', type: 'slider', label: 'Decay', default: 20, min: 5, max: 50, unit: '' }
-      ],
-      apply: (pixelData, imageInfo, params, seed) => {
-        const { width, height, bytesPerPixel, scanlineLength } = imageInfo;
-        const result = new Uint8Array(pixelData);
-        const cx = width / 2, cy = height / 2;
-        const scale = params.scale / 100;
-        const rotation = (params.rotation * Math.PI) / 180;
-        const decayRate = params.decay / 100;
-
-        for (let echo = params.echoes - 1; echo >= 0; echo--) {
-          const currentScale = Math.pow(scale, echo);
-          const currentRot = rotation * echo;
-          const opacity = Math.pow(1 - decayRate, echo);
-          const cosR = Math.cos(currentRot), sinR = Math.sin(currentRot);
-
-          for (let y = 0; y < height; y++) {
-            for (let x = 0; x < width; x++) {
-              // Transform from destination to source
-              const dx = (x - cx) / currentScale;
-              const dy = (y - cy) / currentScale;
-              const srcX = Math.floor(cx + dx * cosR - dy * sinR);
-              const srcY = Math.floor(cy + dx * sinR + dy * cosR);
-
-              if (srcX >= 0 && srcX < width && srcY >= 0 && srcY < height) {
-                const destOffset = y * scanlineLength + 1 + x * bytesPerPixel;
-                const srcOffset = srcY * scanlineLength + 1 + srcX * bytesPerPixel;
-                for (let c = 0; c < Math.min(3, bytesPerPixel); c++) {
-                  result[destOffset + c] = Math.round(
-                    result[destOffset + c] * (1 - opacity) + pixelData[srcOffset + c] * opacity
-                  );
-                }
-              }
-            }
-          }
-        }
-        return result;
-      }
-    });
-
-    // Spiral Pull - Polar coordinate warp
-    registerEffect({
-      id: 'spiral-pull',
-      name: 'Spiral Pull',
-      category: 'distortion',
-      icon: '◈',
-      parameters: [
-        { id: 'twist', type: 'slider', label: 'Twist', default: 20, min: -100, max: 100, unit: '' },
-        { id: 'pull', type: 'slider', label: 'Pull', default: 0, min: -50, max: 50, unit: '' },
-        { id: 'falloff', type: 'dropdown', label: 'Falloff', default: 'linear',
-          options: [
-            { value: 'linear', label: 'Linear' },
-            { value: 'quadratic', label: 'Smooth' },
-            { value: 'constant', label: 'Constant' }
-          ]
-        }
-      ],
-      apply: (pixelData, imageInfo, params, seed) => {
-        const { width, height, bytesPerPixel, scanlineLength } = imageInfo;
-        const result = new Uint8Array(pixelData);
-        const cx = width / 2, cy = height / 2;
-        const maxRadius = Math.sqrt(cx * cx + cy * cy);
-        const twist = logScaleBidirectional(params.twist, 100, Math.PI * 3);
-        const pull = params.pull / 100;
-
-        for (let y = 0; y < height; y++) {
-          for (let x = 0; x < width; x++) {
-            const dx = x - cx, dy = y - cy;
-            const radius = Math.sqrt(dx * dx + dy * dy);
-            const angle = Math.atan2(dy, dx);
-
-            // Apply falloff
-            let factor;
-            if (params.falloff === 'constant') factor = 1;
-            else if (params.falloff === 'quadratic') factor = 1 - Math.pow(radius / maxRadius, 2);
-            else factor = 1 - radius / maxRadius;
-
-            const newAngle = angle + twist * factor;
-            const newRadius = radius * (1 + pull * factor);
-
-            const srcX = Math.floor(cx + Math.cos(newAngle) * newRadius);
-            const srcY = Math.floor(cy + Math.sin(newAngle) * newRadius);
-
-            const destOffset = y * scanlineLength + 1 + x * bytesPerPixel;
-            if (srcX >= 0 && srcX < width && srcY >= 0 && srcY < height) {
-              const srcOffset = srcY * scanlineLength + 1 + srcX * bytesPerPixel;
-              for (let c = 0; c < bytesPerPixel; c++) {
-                result[destOffset + c] = pixelData[srcOffset + c];
-              }
-            }
-          }
-        }
-        return result;
-      }
-    });
-
-    // Erode - Morphological erosion/dilation
-    registerEffect({
-      id: 'erode',
-      name: 'Erode',
-      category: 'stylize',
-      icon: '◖',
-      parameters: [
-        { id: 'iterations', type: 'slider', label: 'Strength', default: 2, min: 1, max: 10, unit: '' },
-        { id: 'mode', type: 'dropdown', label: 'Mode', default: 'erode',
-          options: [
-            { value: 'erode', label: 'Erode Dark' },
-            { value: 'dilate', label: 'Dilate Bright' },
-            { value: 'both', label: 'Both' }
-          ]
-        },
-        { id: 'channel', type: 'dropdown', label: 'Channel', default: 'all',
-          options: [
-            { value: 'all', label: 'All' },
-            { value: 'brightness', label: 'Brightness' }
-          ]
-        }
-      ],
-      apply: (pixelData, imageInfo, params, seed) => {
-        const { width, height, bytesPerPixel, scanlineLength } = imageInfo;
-        let current = new Uint8Array(pixelData);
-
-        for (let iter = 0; iter < params.iterations; iter++) {
-          const next = new Uint8Array(current);
-
-          for (let y = 1; y < height - 1; y++) {
-            for (let x = 1; x < width - 1; x++) {
-              const offset = y * scanlineLength + 1 + x * bytesPerPixel;
-
-              for (let c = 0; c < Math.min(3, bytesPerPixel); c++) {
-                let minVal = 255, maxVal = 0;
-                // 3x3 neighborhood
-                for (let dy = -1; dy <= 1; dy++) {
-                  for (let dx = -1; dx <= 1; dx++) {
-                    const nOffset = (y + dy) * scanlineLength + 1 + (x + dx) * bytesPerPixel;
-                    const val = current[nOffset + c];
-                    if (val < minVal) minVal = val;
-                    if (val > maxVal) maxVal = val;
-                  }
-                }
-
-                if (params.mode === 'erode') next[offset + c] = minVal;
-                else if (params.mode === 'dilate') next[offset + c] = maxVal;
-                else next[offset + c] = (iter % 2 === 0) ? minVal : maxVal;
-              }
-            }
-          }
-          current = next;
-        }
-        return current;
-      }
-    });
-
-    // Convolution - Custom kernel effects
-    registerEffect({
-      id: 'convolution',
-      name: 'Convolution',
-      category: 'stylize',
-      icon: '▩',
-      parameters: [
-        { id: 'kernel', type: 'dropdown', label: 'Kernel', default: 'emboss',
-          options: [
-            { value: 'emboss', label: 'Emboss' },
-            { value: 'sharpen', label: 'Sharpen' },
-            { value: 'edge', label: 'Edge Detect' },
-            { value: 'blur', label: 'Blur' },
-            { value: 'motionH', label: 'Motion H' },
-            { value: 'motionV', label: 'Motion V' }
-          ]
-        },
-        { id: 'strength', type: 'slider', label: 'Strength', default: 50, min: 1, max: 100, unit: '' }
-      ],
-      apply: (pixelData, imageInfo, params, seed) => {
-        const { width, height, bytesPerPixel, scanlineLength } = imageInfo;
-        const result = new Uint8Array(pixelData);
-        const strength = params.strength / 100;
-
-        const kernels = {
-          emboss: [[-2,-1,0],[-1,1,1],[0,1,2]],
-          sharpen: [[0,-1,0],[-1,5,-1],[0,-1,0]],
-          edge: [[-1,-1,-1],[-1,8,-1],[-1,-1,-1]],
-          blur: [[1,2,1],[2,4,2],[1,2,1]],
-          motionH: [[0,0,0],[1,1,1],[0,0,0]],
-          motionV: [[0,1,0],[0,1,0],[0,1,0]]
-        };
-
-        const kernel = kernels[params.kernel];
-        let divisor = 0;
-        for (const row of kernel) for (const v of row) divisor += v;
-        if (divisor === 0) divisor = 1;
-
-        for (let y = 1; y < height - 1; y++) {
-          for (let x = 1; x < width - 1; x++) {
-            const offset = y * scanlineLength + 1 + x * bytesPerPixel;
-
-            for (let c = 0; c < Math.min(3, bytesPerPixel); c++) {
-              let sum = 0;
-              for (let ky = -1; ky <= 1; ky++) {
-                for (let kx = -1; kx <= 1; kx++) {
-                  const nOffset = (y + ky) * scanlineLength + 1 + (x + kx) * bytesPerPixel;
-                  sum += pixelData[nOffset + c] * kernel[ky + 1][kx + 1];
-                }
-              }
-              const filtered = Math.max(0, Math.min(255, sum / divisor));
-              result[offset + c] = Math.round(pixelData[offset + c] * (1 - strength) + filtered * strength);
-            }
-          }
-        }
-        return result;
-      }
-    });
-
-    // Pixel Plasma - Sine wave color modulation
-    registerEffect({
-      id: 'pixel-plasma',
-      name: 'Pixel Plasma',
-      category: 'color',
-      icon: '◉',
-      parameters: [
-        { id: 'frequency', type: 'slider', label: 'Frequency', default: 30, min: 5, max: 100, unit: '' },
-        { id: 'amplitude', type: 'slider', label: 'Amplitude', default: 30, min: 1, max: 100, unit: '' },
-        { id: 'mode', type: 'dropdown', label: 'Mode', default: 'add',
-          options: [
-            { value: 'add', label: 'Additive' },
-            { value: 'multiply', label: 'Multiply' },
-            { value: 'screen', label: 'Screen' }
-          ]
-        }
-      ],
-      apply: (pixelData, imageInfo, params, seed) => {
-        const { width, height, bytesPerPixel, scanlineLength } = imageInfo;
-        const result = new Uint8Array(pixelData);
-        const rng = createSeededRNG(seed);
-        const freq = logScale(params.frequency, 100, 0.15);
-        const amp = logScale(params.amplitude, 100, 100);
-
-        // Random phase offsets for each channel
-        const phases = [rng() * Math.PI * 2, rng() * Math.PI * 2, rng() * Math.PI * 2];
-        const freqMult = [1 + rng() * 0.5, 1 + rng() * 0.5, 1 + rng() * 0.5];
-
-        for (let y = 0; y < height; y++) {
-          const rowStart = y * scanlineLength + 1;
-          for (let x = 0; x < width; x++) {
-            const offset = rowStart + x * bytesPerPixel;
-
-            for (let c = 0; c < Math.min(3, bytesPerPixel); c++) {
-              const plasma = Math.sin(x * freq * freqMult[c] + phases[c]) +
-                            Math.sin(y * freq * freqMult[c] + phases[c] + 1) +
-                            Math.sin((x + y) * freq * 0.7 + phases[c] + 2);
-              const plasmaVal = ((plasma / 3) + 1) * 0.5 * amp;
-
-              const original = pixelData[offset + c];
-              let newVal;
-              if (params.mode === 'add') {
-                newVal = original + plasmaVal - amp/2;
-              } else if (params.mode === 'multiply') {
-                newVal = original * (0.5 + plasmaVal / amp);
-              } else { // screen
-                newVal = 255 - (255 - original) * (1 - plasmaVal / 255);
-              }
-              result[offset + c] = Math.max(0, Math.min(255, Math.round(newVal)));
-            }
-          }
-        }
-        return result;
-      }
-    });
-
-    // Color Bleed - Diffusion/spread effect
-    registerEffect({
-      id: 'color-bleed',
-      name: 'Color Bleed',
-      category: 'color',
-      icon: '◐',
-      parameters: [
-        { id: 'iterations', type: 'slider', label: 'Spread', default: 5, min: 1, max: 20, unit: '' },
-        { id: 'threshold', type: 'slider', label: 'Threshold', default: 30, min: 1, max: 100, unit: '' },
-        { id: 'mode', type: 'dropdown', label: 'Mode', default: 'bright',
-          options: [
-            { value: 'bright', label: 'Bright Bleeds' },
-            { value: 'dark', label: 'Dark Bleeds' },
-            { value: 'saturated', label: 'Saturated Bleeds' }
-          ]
-        }
-      ],
-      apply: (pixelData, imageInfo, params, seed) => {
-        const { width, height, bytesPerPixel, scanlineLength } = imageInfo;
-        let current = new Uint8Array(pixelData);
-        const threshold = logScale(params.threshold, 100, 50);
-
-        for (let iter = 0; iter < params.iterations; iter++) {
-          const next = new Uint8Array(current);
-
-          for (let y = 1; y < height - 1; y++) {
-            for (let x = 1; x < width - 1; x++) {
-              const offset = y * scanlineLength + 1 + x * bytesPerPixel;
-              const r = current[offset], g = current[offset + 1], b = current[offset + 2];
-              const brightness = (r + g + b) / 3;
-              const max = Math.max(r, g, b), min = Math.min(r, g, b);
-              const saturation = max === 0 ? 0 : (max - min) / max * 255;
-
-              let shouldBleed = false;
-              if (params.mode === 'bright') shouldBleed = brightness > 255 - threshold;
-              else if (params.mode === 'dark') shouldBleed = brightness < threshold;
-              else shouldBleed = saturation > 255 - threshold;
-
-              if (shouldBleed) {
-                // Spread to neighbors
-                for (let dy = -1; dy <= 1; dy++) {
-                  for (let dx = -1; dx <= 1; dx++) {
-                    if (dx === 0 && dy === 0) continue;
-                    const nOffset = (y + dy) * scanlineLength + 1 + (x + dx) * bytesPerPixel;
-                    for (let c = 0; c < 3; c++) {
-                      next[nOffset + c] = Math.round(next[nOffset + c] * 0.7 + current[offset + c] * 0.3);
-                    }
-                  }
-                }
-              }
-            }
-          }
-          current = next;
-        }
-        return current;
-      }
-    });
 
     // ========== LAYER MANAGEMENT ==========
 
@@ -2815,25 +1266,8 @@
       }
     });
 
-    // Save buttons
+    // Save button
     elements.btnSave.addEventListener('click', () => saveFile(true));
-    elements.btnSaveRaw.addEventListener('click', () => saveFile(false));
-
-    // Mode toggle switch
-    elements.modeToggle.addEventListener('change', () => {
-      const newMode = elements.modeToggle.checked ? 'raw' : 'pixel';
-      if (state.editMode === newMode) return;
-      if (newMode === 'pixel' && !state.pixelData) {
-        elements.modeToggle.checked = true; // Stay on raw
-        return;
-      }
-      state.editMode = newMode;
-      state.cursorOffset = 0;
-      state.selectionStart = null;
-      state.selectionEnd = null;
-      refreshHexView();
-      updateStatus();
-    });
 
     // ========== EFFECTS PANEL EVENT HANDLERS ==========
 
@@ -3302,6 +1736,100 @@
         document.body.style.cursor = '';
         document.body.style.userSelect = '';
       }
+    });
+
+    // ========== HELP DIALOG ==========
+
+    let effectPreviews = {};
+
+    async function loadEffectPreviews() {
+      if (Object.keys(effectPreviews).length > 0) return;
+      // Check for inlined previews (single-file build)
+      if (window.__EFFECT_PREVIEWS__ && Object.keys(window.__EFFECT_PREVIEWS__).length > 0) {
+        effectPreviews = window.__EFFECT_PREVIEWS__;
+        return;
+      }
+      // Load from external file
+      try {
+        const response = await fetch('./assets/effect-previews.json');
+        if (response.ok) {
+          effectPreviews = await response.json();
+        }
+      } catch (e) {
+        console.warn('Could not load effect previews:', e);
+      }
+    }
+
+    function formatParamInfo(param) {
+      if (param.type === 'slider') {
+        const unit = param.unit || '';
+        return `${param.min}–${param.max}${unit}`;
+      } else if (param.type === 'dropdown') {
+        return param.options.map(o => o.label).slice(0, 3).join(' / ') + (param.options.length > 3 ? '...' : '');
+      } else if (param.type === 'checkbox') {
+        return 'on/off';
+      }
+      return '';
+    }
+
+    async function populateHelpDialog() {
+      await loadEffectPreviews();
+
+      const categories = {};
+      const categoryOrder = ['filter', 'channel', 'distortion', 'color', 'generative', 'stylize', 'blend'];
+
+      for (const [id, effect] of effectRegistry) {
+        const cat = effect.category || 'other';
+        if (!categories[cat]) categories[cat] = [];
+        categories[cat].push({ id, ...effect });
+      }
+
+      let html = '';
+      for (const category of categoryOrder) {
+        const effects = categories[category];
+        if (!effects || effects.length === 0) continue;
+
+        html += `<section class="help-category">
+          <h3>${category} (${effects.length})</h3>
+          <div class="help-grid">
+            ${effects.map(effect => `
+              <div class="help-card">
+                <img class="help-card-preview" src="${effectPreviews[effect.id] || ''}" alt="${effect.name}">
+                <div class="help-card-body">
+                  <div class="help-card-header">
+                    <span class="help-card-icon">${effect.icon || ''}</span>
+                    <span class="help-card-name">${effect.name}</span>
+                  </div>
+                  <div class="help-card-desc">${effectDescriptions[effect.id] || ''}</div>
+                  <div class="help-card-params">
+                    ${effect.parameters.slice(0, 4).map(p => `
+                      <div class="help-param">
+                        <span class="help-param-name">${p.label}</span>
+                        <span class="help-param-info">${formatParamInfo(p)}</span>
+                      </div>
+                    `).join('')}
+                    ${effect.parameters.length > 4 ? `<div class="help-param"><span class="help-param-name">...</span><span class="help-param-info">+${effect.parameters.length - 4} more</span></div>` : ''}
+                  </div>
+                </div>
+              </div>
+            `).join('')}
+          </div>
+        </section>`;
+      }
+
+      elements.helpContent.innerHTML = html;
+    }
+
+    // Help dialog event handlers
+    elements.btnHelp.addEventListener('click', async () => {
+      if (!elements.helpContent.innerHTML) {
+        await populateHelpDialog();
+      }
+      elements.helpDialog.showModal();
+    });
+
+    elements.helpClose.addEventListener('click', () => {
+      elements.helpDialog.close();
     });
 
     // Window resize
