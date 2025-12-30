@@ -1887,10 +1887,7 @@ import {
               <div class="help-card">
                 <img class="help-card-preview" src="${effectPreviews[effect.id] || ''}" alt="${effect.name}">
                 <div class="help-card-body">
-                  <div class="help-card-header">
-                    <span class="help-card-icon">${effect.icon || ''}</span>
-                    <span class="help-card-name">${effect.name}</span>
-                  </div>
+                  <div class="help-card-name">${effect.name}</div>
                   <div class="help-card-desc">${effectDescriptions[effect.id] || ''}</div>
                   <div class="help-card-params">
                     ${effect.parameters.slice(0, 4).map(p => `
@@ -1921,6 +1918,13 @@ import {
 
     elements.helpClose.addEventListener('click', () => {
       elements.helpDialog.close();
+    });
+
+    // Close help dialog when clicking backdrop
+    elements.helpDialog.addEventListener('click', (e) => {
+      if (e.target === elements.helpDialog) {
+        elements.helpDialog.close();
+      }
     });
 
     // Window resize

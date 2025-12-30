@@ -1090,8 +1090,8 @@
     /* ========== HELP DIALOG ========== */
 
     #help-dialog {
-      width: 90vw;
-      max-width: 1200px;
+      width: 95vw;
+      max-width: 1600px;
       height: 90vh;
       max-height: 90vh;
       margin: auto; /* Center with showModal() */
@@ -1171,8 +1171,8 @@
 
     .help-grid {
       display: grid;
-      grid-template-columns: repeat(2, 1fr);
-      gap: 12px;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
     }
 
     .help-card {
@@ -1185,8 +1185,8 @@
     }
 
     .help-card-preview {
-      width: 120px;
-      height: 120px;
+      width: 140px;
+      height: 140px;
       border-radius: 4px;
       flex-shrink: 0;
       image-rendering: pixelated;
@@ -1196,17 +1196,6 @@
     .help-card-body {
       flex: 1;
       min-width: 0;
-    }
-
-    .help-card-header {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      margin-bottom: 4px;
-    }
-
-    .help-card-icon {
-      font-size: 14px;
     }
 
     .help-card-name {
@@ -1249,10 +1238,30 @@
     /* Help button styling */
     #btn-help {
       font-weight: 700;
-      min-width: 32px;
+      min-width: 28px;
+      width: 28px;
+      height: 28px;
+      padding: 0;
+      border-radius: 50%;
+      background: var(--text-primary);
+      color: var(--bg);
+      font-size: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
     }
 
-    @media (max-width: 900px) {
+    #btn-help:hover {
+      background: var(--accent);
+    }
+
+    @media (max-width: 1200px) {
+      .help-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+
+    @media (max-width: 768px) {
       .help-grid {
         grid-template-columns: 1fr;
       }
